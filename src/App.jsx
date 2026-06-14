@@ -1,4 +1,169 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const API_KEY = '7cbc4183675df1f6e1e96a969abae30d';
+
+const locations = {
+  zurich: { name: 'Zurich', lat: 47.3769, lon: 8.5417, elevation: 408 },
+  lucerne: { name: 'Lucerne', lat: 47.0502, lon: 8.3093, elevation: 435 },
+  interlaken: { name: 'Interlaken', lat: 46.6863, lon: 7.8632, elevation: 566 },
+  zermatt: { name: 'Zermatt', lat: 46.0207, lon: 7.7491, elevation: 1608 },
+};
+
+const highAltitudeSpots = {
+  pilatus: { name: 'Pilatus Summit', elevation: 2128, baseLocation: 'lucerne' },
+  grindelwaldFirst: { name: 'Grindelwald First', elevation: 2168, baseLocation: 'interlaken' },
+  murren: { name: 'Mürren', elevation: 1638, baseLocation: 'interlaken' },
+  oeschinen: { name: 'Oeschinen Lake', elevation: 1578, baseLocation: 'interlaken' },
+  harderKulm: { name: 'Harder Kulm', elevation: 1322, baseLocation: 'interlaken' },
+  gornergrat: { name: 'Gornergrat', elevation: 3100, baseLocation: 'zermatt' },
+  glacierParadise: { name: 'Glacier Paradise', elevation: 3883, baseLocation: 'zermatt' },
+  riffelsee: { name: 'Riffelsee', elevation: 2757, baseLocation: 'zermatt' },
+};
+
+const dayLocationMap = {
+  'June 18': null,
+  'June 19': 'zurich',
+  'June 20': 'lucerne',
+  'June 21': 'lucerne',
+  'June 22': 'interlaken',
+  'June 23': 'interlaken',
+  'June 24': 'interlaken',
+  'June 25': 'interlaken',
+  'June 26': 'interlaken',
+  'June 27': 'zermatt',
+  'June 28': 'zermatt',
+  'June 29': 'zurich',
+  'June 30': 'zurich',
+};
+
+const dayAltitudeSpots = {
+  'June 21': ['pilatus'],
+  'June 22': ['grindelwaldFirst'],
+  'June 24': ['murren', 'harderKulm'],
+  'June 26': ['oeschinen'],
+  'June 27': ['gornergrat', 'riffelsee'],
+  'June 28': ['glacierParadise'],
+};
+
+const staticWeather = {
+  'June 18': null,
+  'June 19': { temp: '18–26°C', condition: 'Warm, pleasant.', layers: 'T-shirt + light layer for evening.' },
+  'June 20': { temp: '17–25°C', condition: 'Warm, lake breeze.', layers: 'T-shirt + light layer for evening.' },
+  'June 21': { temp: 'Valley: 17–25°C. Pilatus: 8–14°C.', condition: 'Warm below, COLD at summit.', layers: '⚠️ JACKET + FLEECE for Pilatus.' },
+  'June 22': { temp: 'Valley: 17–25°C. First: 8–14°C.', condition: 'Warm in valley, COLD at summit.', layers: '⚠️ JACKET for Grindelwald First.' },
+  'June 23': { temp: '17–25°C', condition: 'Warm, pleasant.', layers: 'T-shirt + sunscreen.' },
+  'June 24': { temp: 'Valley: 17–25°C. Mürren: 12–18°C.', condition: 'Warm in valley. Cooler in Mürren.', layers: 'Light jacket for Mürren.' },
+  'June 25': { temp: '17–25°C', condition: 'Warm.', layers: 'Comfortable clothes + swimsuit.' },
+  'June 26': { temp: 'Valley: 17–25°C. Lake: 12–18°C.', condition: 'Cooler at lake.', layers: 'Light jacket + sunscreen + hat.' },
+  'June 27': { temp: 'Village: 12–20°C. Gornergrat: 0–8°C.', condition: '⚠️ COLD at altitude.', layers: '⚠️ WARM JACKET + FLEECE + HAT + GLOVES.' },
+  'June 28': { temp: 'Village: 12–20°C. Glacier Paradise: -5–3°C.', condition: '⚠️ VERY COLD at summit.', layers: '⚠️⚠️ FULL WINTER LAYERS.' },
+  'June 29': { temp: '18–26°C', condition: 'Warm.', layers: 'T-shirt weather.' },
+  'June 30': { temp: '18–26°C', condition: 'Warm.', layers: 'Travel clothes.' },
+};
+
+function calcAltitudeTemp(baseTemp, baseElevation, targetElevation) {
+  const elevDiff = targetElevation - baseElevation;
+  const tempDrop = (elevDiff / 1000) * 6.5;
+  return Math.round(baseTemp - tempDrop);
+}
+
+function getWeatherIcon(code) {
+  if (!code) return '🌤️';
+  if (code >= 200 && code < 300) return '⛈️';
+  if (code >= 300 && code < 500) return '🌦️';
+  if (code >= 500 && code < 600) return '🌧️';
+  if (code >= 600 && code < 700) return '🌨️';
+  if (code >= 700 && code < 800) return '🌫️';
+  if (code === 800) return '☀️';
+  if (code > 800) return '⛅';
+  return '🌤️';
+}
+
+function getLayerAdvice(tempHigh, altitudeTemps) {
+  let advice = '';
+  if (tempHigh >= 20) advice = 'T-shirt weather in valley.';
+  else if (tempHigh >= 15) advice = 'Light layer recommended.';
+  else advice = 'Jacket recommended.';
+
+  if (altitudeTemps && altitudeTemps.length > 0) {
+    const coldest = Math.min(...altitudeTemps.map(a => a.temp));
+    if (coldest <= 0) advice += ' ⚠️⚠️ FULL WINTER LAYERS at summit (sub-zero).';
+    else if (coldest <= 8) advice += ' ⚠️ WARM JACKET + FLEECE + HAT for altitude.';
+    else if (coldest <= 14) advice += ' Light jacket for altitude.';
+  }
+  return advice;
+}
+
+function WeatherCard({ date, weatherData }) {
+  const locationKey = dayLocationMap[date];
+  if (!locationKey) return null;
+
+  const dateObj = new Date(`${date}, 2026`);
+  const forecast = weatherData[locationKey]?.find(d => {
+    const fDate = new Date(d.dt * 1000);
+    return fDate.toDateString() === dateObj.toDateString();
+  });
+
+  const altSpots = dayAltitudeSpots[date] || [];
+  let altitudeTemps = [];
+
+  if (forecast && altSpots.length > 0) {
+    altitudeTemps = altSpots.map(spotKey => {
+      const spot = highAltitudeSpots[spotKey];
+      const base = locations[spot.baseLocation];
+      const estTemp = calcAltitudeTemp(forecast.temp.max, base.elevation, spot.elevation);
+      return { name: spot.name, temp: estTemp, elevation: spot.elevation };
+    });
+  }
+
+  if (forecast) {
+    const icon = getWeatherIcon(forecast.weather?.[0]?.id);
+    const layers = getLayerAdvice(forecast.temp.max, altitudeTemps);
+    return (
+      <div className="bg-sky-50 rounded-2xl shadow-sm p-4 border border-sky-200">
+        <div className="flex items-start gap-3">
+          <span className="text-3xl">{icon}</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-medium text-sky-900">{locations[locationKey].name}: {Math.round(forecast.temp.min)}°C – {Math.round(forecast.temp.max)}°C</p>
+              <span className="text-xs text-sky-600 bg-sky-100 px-2 py-0.5 rounded-full">Live forecast</span>
+            </div>
+            <p className="text-sm text-sky-700 mt-1">{forecast.weather?.[0]?.description || ''}</p>
+            {altitudeTemps.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {altitudeTemps.map(a => (
+                  <p key={a.name} className="text-sm text-sky-800">
+                    <strong>{a.name}</strong> ({a.elevation}m): ~{a.temp}°C
+                  </p>
+                ))}
+              </div>
+            )}
+            <p className="text-sm text-sky-800 mt-2 font-medium">👕 {layers}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to static
+  const sw = staticWeather[date];
+  if (!sw) return null;
+  return (
+    <div className="bg-sky-50 rounded-2xl shadow-sm p-4 border border-sky-200">
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">🌡️</span>
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-sky-900">{sw.temp}</p>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Estimate</span>
+          </div>
+          <p className="text-sm text-sky-700 mt-1">{sw.condition}</p>
+          <p className="text-sm text-sky-800 mt-1 font-medium">👕 {sw.layers}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const itinerary = [
   {
@@ -8,160 +173,107 @@ const itinerary = [
     hotel: null,
     summary: 'Departure day',
     overlap: false,
-    weather: null,
     sections: [
-      {
-        time: 'Afternoon',
-        items: [
-          { text: 'Flight: Toronto (YTZ) → Montreal (YUL)', detail: 'Air Canada AC 7962, 12:30 PM – 1:47 PM', type: 'transit', pass: false },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Flight: Montreal (YUL) → Zurich (ZRH)', detail: 'SWISS LX 87, 4:40 PM – 6:10 AM +1', type: 'transit', pass: false },
-        ]
-      }
+      { time: 'Afternoon', items: [{ text: 'Flight: Toronto → Montreal', detail: 'Air Canada AC 7962, 12:30 PM – 1:47 PM', type: 'transit', pass: false }] },
+      { time: 'Evening', items: [{ text: 'Flight: Montreal → Zurich', detail: 'SWISS LX 87, 4:40 PM – 6:10 AM +1', type: 'transit', pass: false }] }
     ],
-    meals: [],
-    notes: [],
-    groceries: null,
-    picnic: null
+    meals: [], notes: [], groceries: null, picnic: null
   },
   {
     date: 'June 19',
     day: 'Friday',
     city: 'Zurich',
     hotel: 'The Home Hotel Zürich',
-    summary: 'Arrival, Old Town stroll, Lindt Factory, dinner with Betsy',
+    summary: 'Arrival, Old Town, Lindt, dinner with Betsy',
     overlap: true,
-    weather: { temp: '18–26°C (64–79°F)', condition: 'Warm, pleasant. Possible afternoon thunderstorms.', layers: 'T-shirt + light layer for evening. Umbrella just in case.' },
     sections: [
-      {
-        time: 'Morning (6:10 AM – 12:00 PM)',
-        items: [
-          { text: '6:10 AM — Arrive ZRH. Clear customs, collect bags.', detail: 'Expect ~30–45 min to get through airport.', type: 'transit', pass: false, duration: '45 min' },
-          { text: '~7:00 AM — Pick up Half Fare Card at SBB counter (airport)', detail: 'SBB Reisezentrum in airport arrivals hall. Bring passports.', type: 'logistics', duration: '15 min' },
-          { text: '~7:30 AM — Train to Zurich HB + tram to hotel', detail: 'Airport → Zurich HB (12 min), then tram to hotel area (~10 min). Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '30 min' },
-          { text: '~8:00 AM — Arrive The Home Hotel. Drop bags.', detail: 'Too early for check-in. Ask to store luggage.', type: 'logistics', duration: '15 min' },
-          { text: 'Morning — Old town wander', detail: 'Augustinergasse (colorful buildings) → Lindenhof (viewpoint) → Giacometti-Halle (walk in, look up, photo, leave). Go at your own pace — no schedule.', type: 'activity', optional: false, duration: '1.5 hrs' },
-          { text: 'Rest / nap when hotel room ready', detail: 'Check in when available (likely 2–3 PM). Decompress before Lindt.', type: 'logistics' },
-        ]
-      },
-      {
-        time: 'Afternoon (3:00 PM – 7:00 PM)',
-        items: [
-          { text: '~3:15 PM — Depart for Lindt Home of Chocolate', detail: 'Train S8 from Zurich HB to Kilchberg, ~12 min + 10 min walk. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '30 min' },
-          { text: '4:00 PM — Lindt Home of Chocolate', detail: 'Booked. Museum, tasting, chocolate fountain, shop. ~1.5–2 hrs.', type: 'activity', optional: false, reservation: 'booked', duration: '1.5–2 hrs' },
-          { text: '~6:00 PM — Train back to Zurich HB', detail: 'Kilchberg → Zurich HB (~12 min). Walk to Zeughauskeller (~10 min).', type: 'transit', pass: 'half', duration: '25 min' },
-        ]
-      },
-      {
-        time: 'Evening (7:30 PM+)',
-        items: [
-          { text: '7:30 PM — Dinner with Betsy at Zeughauskeller', detail: 'Historic beer hall, schnitzel ~CHF 25–35. Reservations for 2 and 4.', type: 'food', overlap: true, reservation: 'booked' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: '6:10 AM — Arrive ZRH', detail: '~30–45 min customs/bags.', type: 'transit', pass: false, duration: '45 min' },
+        { text: 'Pick up Half Fare Card at SBB counter', detail: 'Airport arrivals hall. Bring passports.', type: 'logistics', duration: '15 min' },
+        { text: 'Train to Zurich HB + tram to hotel', detail: 'Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '30 min' },
+        { text: 'Drop bags at hotel. Old town wander.', detail: 'Augustinergasse → Lindenhof → Giacometti-Halle. Go at your own pace.', type: 'activity', duration: '1.5 hrs' },
+        { text: 'Rest / nap when room ready', detail: 'Check in likely 2–3 PM.', type: 'logistics' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '~3:15 PM — Train to Kilchberg for Lindt', detail: 'Half Fare: 50% off. ~12 min + 10 min walk.', type: 'transit', pass: 'half', duration: '30 min' },
+        { text: '4:00 PM — Lindt Home of Chocolate', detail: 'Booked. Museum, tasting, shop. ~1.5–2 hrs.', type: 'activity', reservation: 'booked', duration: '1.5–2 hrs' },
+        { text: '~6:00 PM — Train back to Zurich HB', detail: 'Walk to Zeughauskeller area (~10 min).', type: 'transit', pass: 'half', duration: '25 min' },
+      ]},
+      { time: 'Evening', items: [
+        { text: '7:30 PM — Zeughauskeller with Betsy', detail: 'Schnitzel + beer. Tables for 2 and 4.', type: 'food', overlap: true, reservation: 'booked' },
+      ]}
     ],
     meals: [
-      { type: 'Breakfast', plan: 'Café near hotel after arriving' },
-      { type: 'Lunch', plan: 'Skip or light snack — jet lag + big dinner coming' },
-      { type: 'Dinner', plan: 'Zeughauskeller with Betsy — 7:30 PM' }
+      { type: 'Breakfast', plan: 'Café near hotel' },
+      { type: 'Dinner', plan: 'Zeughauskeller — 7:30 PM ✅' }
     ],
     notes: [
-      { type: 'reservation', text: 'Zeughauskeller: BOOKED — 7:30 PM, tables for 2 and 4 ✅' },
-      { type: 'verify', text: 'Confirm hotel luggage storage / early check-in at The Home Hotel' },
-      { type: 'tip', text: 'Pick up Half Fare Card at airport SBB counter FIRST — use it for the train into the city' }
+      { type: 'reservation', text: 'Zeughauskeller: BOOKED — 7:30 PM (2 + 4) ✅' },
+      { type: 'tip', text: 'Pick up Half Fare Card at airport FIRST' }
     ],
-    groceries: null,
-    picnic: null
+    groceries: null, picnic: null
   },
   {
     date: 'June 20',
     day: 'Saturday',
     city: 'Lucerne',
     hotel: 'Art Deco Hotel Montana',
-    summary: 'Travel to Lucerne, Old Town with Betsy, Old Swiss House lunch',
+    summary: 'Old Town with Betsy, Old Swiss House lunch',
     overlap: true,
-    weather: { temp: '17–25°C (63–77°F)', condition: 'Warm, lake breeze.', layers: 'T-shirt + light layer for evening.' },
     sections: [
-      {
-        time: 'Morning (9:00 AM – 12:30 PM)',
-        items: [
-          { text: '~9:00 AM — Check out The Home Hotel. Train to Lucerne.', detail: 'Zurich HB → Luzern, ~45 min direct. Half Fare: ~CHF 13/person.', type: 'transit', pass: 'half', duration: '45 min' },
-          { text: '~10:30 AM — Arrive Lucerne. Drop bags at Art Deco Hotel Montana.', detail: 'Hotel is uphill — take their private funicular! Bags stored until check-in.', type: 'logistics', duration: '20 min' },
-          { text: '~11:00 AM – 12:30 PM — Old Town stroll with Betsy', detail: 'Chapel Bridge → north side old town (Weinmarkt, Kornmarkt, narrow lanes) → Rathausquai. All very compact.', type: 'activity', optional: false, overlap: true, duration: '1.5 hrs' },
-        ]
-      },
-      {
-        time: 'Afternoon (12:45 PM – 6:00 PM)',
-        items: [
-          { text: '12:45 PM — Lunch at Old Swiss House (table for 4)', detail: 'Famous tableside Wiener Schnitzel. ~CHF 45–60/person. Table for 4 if Betsy joins. Backup: 1:15 PM table for 2.', type: 'food', reservation: 'booked', overlap: true, duration: '1.5 hrs' },
-          { text: '~2:30 PM — Check into hotel. Rest.', detail: 'Settle in, enjoy the view.', type: 'logistics', duration: '1 hr' },
-          { text: 'Afternoon — Optional: Steamboat ride', detail: '~1 hr round trip. Walk-up at dock. Half Fare: 50% off. Or save for tomorrow.', type: 'activity', optional: true, pass: 'half', duration: '1 hr' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Casual evening — light snack or hotel terrace drinks', detail: 'Big lunch covers you. Grab something small from Coop if hungry later.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Train to Lucerne', detail: '~45 min. Half Fare: ~CHF 13/person.', type: 'transit', pass: 'half', duration: '45 min' },
+        { text: 'Drop bags at hotel', detail: 'Private funicular up to hotel!', type: 'logistics', duration: '20 min' },
+        { text: 'Old Town stroll with Betsy', detail: 'Chapel Bridge → Weinmarkt → Kornmarkt → Rathausquai.', type: 'activity', overlap: true, duration: '1.5 hrs' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '12:45 PM — Old Swiss House lunch', detail: 'Tableside schnitzel. Table for 4 (Betsy). Backup: 1:15 PM for 2.', type: 'food', reservation: 'booked', overlap: true, duration: '1.5 hrs' },
+        { text: 'Check in. Rest. Optional steamboat.', detail: 'Steamboat ~1 hr, Half Fare 50% off. Or save for tomorrow.', type: 'activity', optional: true, pass: 'half' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Light evening — Coop snacks or hotel terrace', detail: 'Big lunch covers you.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: '🍽️ Old Swiss House — 12:45 PM (schnitzel!) ✅' },
-      { type: 'Dinner', plan: 'Light — Coop snacks or hotel bar. Big lunch covers you.' }
+      { type: 'Lunch', plan: '🍽️ Old Swiss House — 12:45 PM ✅' },
+      { type: 'Dinner', plan: 'Light — Coop snacks or skip' }
     ],
     notes: [
-      { type: 'reservation', text: 'Old Swiss House: BOOKED — 12:45 PM (4) + 1:15 PM (2) ✅' },
-      { type: 'tip', text: '🛒 GROCERY STOP: Coop Lucerne (at station) — buy snacks for Sunday (shops closed tomorrow!) + evening nibbles' },
-      { type: 'tip', text: 'Steamboat can move to tomorrow if today feels full' }
+      { type: 'reservation', text: 'Old Swiss House: BOOKED — 12:45 (4) + 1:15 (2) ✅' },
+      { type: 'tip', text: '🛒 Coop Lucerne (at station): Buy for Sunday (shops closed tomorrow!)' }
     ],
-    groceries: { store: '🛒 KEY SHOP: Coop Lucerne (at station). Buy Sunday supplies NOW — most shops closed tomorrow!', wine: 'Coop has wine/beer. Denner on Hertensteinstrasse for cheaper options.', note: '⚠️ Buy for Sunday too! Snacks, drinks, anything you need for tomorrow.' },
-    picnic: { spot: 'Evening: lakeside benches along Nationalquai or Inseli Park with wine from Coop.', tip: 'After a big schnitzel lunch, a lakeside wine + snack at sunset is the perfect low-key evening.' }
+    groceries: { store: '🛒 Coop Lucerne (station). Buy Sunday supplies NOW!', wine: 'Coop or Denner on Hertensteinstrasse.', note: '⚠️ Sunday shops closed — buy tonight!' },
+    picnic: { spot: 'Lakeside benches along Nationalquai or Inseli Park.', tip: 'Evening wine + snack at sunset after big lunch.' }
   },
   {
     date: 'June 21',
     day: 'Sunday',
     city: 'Lucerne',
     hotel: 'Art Deco Hotel Montana',
-    summary: 'Pilatus (optional), Lion Monument, steamboat, casual day',
+    summary: 'Pilatus (optional), Lion Monument, steamboat',
     overlap: false,
-    weather: { temp: 'Valley: 17–25°C. Pilatus summit: 8–14°C (46–57°F).', condition: 'Warm below, COLD at Pilatus summit.', layers: '⚠️ JACKET + FLEECE for Pilatus summit. Warm below.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Mount Pilatus via cable car + toboggan', detail: 'Bus #1 to Kriens (~15 min). Gondola to Fräkmüntegg (toboggan here) → cable car to summit. Half Fare: 50% off. Total ~3.5 hrs round trip.', type: 'activity', optional: true, pass: 'half', duration: '3.5 hrs' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: 'Lion Monument', detail: '5-min stop. Dying lion carved into rock face. Very photogenic.', type: 'activity', optional: false, duration: '10 min' },
-          { text: 'Banh Mi Pho Luzern (if open Sunday)', detail: 'Asian food fix. VERIFY Sunday hours. Backup: Coop deli at station.', type: 'food', optional: true },
-          { text: 'Steamboat ride (if not done yesterday)', detail: '~1 hr round trip. Walk-up. Half Fare: 50% off.', type: 'activity', optional: true, pass: 'half', duration: '1 hr' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Casual dinner from Saturday\'s Coop haul', detail: 'Sunday shops mostly closed. Use what you bought yesterday.', type: 'food' },
-          { text: 'Optional: Hotel Montana terrace sunset', detail: 'Stunning lake views.', type: 'activity', optional: true },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Optional: Mount Pilatus', detail: 'Bus to Kriens → gondola → toboggan → summit. Half Fare: 50% off. ~3.5 hrs total.', type: 'activity', optional: true, pass: 'half', duration: '3.5 hrs' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: 'Lion Monument', detail: '5-min stop. Very photogenic.', type: 'activity', duration: '10 min' },
+        { text: 'Banh Mi Pho (if open) or Coop deli', detail: 'Verify Sunday hours.', type: 'food', optional: true },
+        { text: 'Steamboat (if not done yesterday)', detail: '~1 hr. Half Fare: 50% off.', type: 'activity', optional: true, pass: 'half', duration: '1 hr' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Casual dinner from Saturday Coop haul', detail: 'Sunday shops closed!', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: 'Banh Mi Pho if open, otherwise Coop deli / station food' },
-      { type: 'Dinner', plan: 'Saturday\'s Coop supplies — Sunday shops closed!' }
+      { type: 'Lunch', plan: 'Banh Mi Pho if open, otherwise Coop deli' },
+      { type: 'Dinner', plan: 'Saturday\'s supplies' }
     ],
     notes: [
-      { type: 'verify', text: 'Banh Mi Pho Luzern: CONFIRM SUNDAY HOURS' },
-      { type: 'verify', text: 'Pilatus: confirm cable car + toboggan open. Search "Pilatus Bahnen summer 2026"' },
-      { type: 'optional', text: 'Pilatus is skippable — Grindelwald First tomorrow also has rides' },
-      { type: 'tip', text: '⚠️ SUNDAY: Most shops closed. Use Saturday\'s supplies!' }
+      { type: 'verify', text: 'Banh Mi Pho: Sunday hours? | Pilatus: open?' },
+      { type: 'tip', text: '⚠️ SUNDAY — shops closed. Use Saturday supplies.' }
     ],
-    groceries: { store: '⚠️ SUNDAY — most shops closed. Station Coop may have limited hours (until 5 PM). You should be covered from Saturday\'s shop.', wine: 'Use Saturday supplies.', note: 'Don\'t count on buying anything today.' },
+    groceries: { store: '⚠️ Sunday — mostly closed.', wine: 'From Saturday.', note: 'Use Saturday supplies.' },
     picnic: null
   },
   {
@@ -171,172 +283,125 @@ const itinerary = [
     hotel: 'Victoria View Apartments 2',
     summary: 'Travel to Interlaken, Grindelwald First with Betsy',
     overlap: true,
-    weather: { temp: 'Valley: 17–25°C. First summit: 8–14°C (46–57°F).', condition: 'Warm in valley, COLD at First summit.', layers: '⚠️ JACKET for Grindelwald First. Layers you can peel off.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Check out Art Deco Hotel Montana. Train to Interlaken.', detail: 'Luzern → Interlaken Ost, ~1 hr 50 min (Brünig Pass — scenic! Sit RIGHT side). Half Fare: ~CHF 17/person.', type: 'transit', pass: 'half', duration: '1 hr 50 min' },
-          { text: '~11:20 AM — Arrive Interlaken Ost. Walk to apartment.', detail: 'Victoria View Apartments 2, Alpenstrasse 2. ~5 min walk from Ost station. Drop bags (check-in 4–7 PM, but ask about early luggage drop).', type: 'logistics', duration: '10 min' },
-          { text: '🛒 Grocery shop at Coop Interlaken', detail: 'Near Ost station. BIG SHOP for the week — see grocery list in Overview.', type: 'food', duration: '20 min' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: 'Train to Grindelwald + Gondola to First with Betsy', detail: 'Interlaken Ost → Grindelwald (~35 min, half fare). Gondola to First (~25 min, half fare 50% off). Cliff walk, views, mountain cart down.', type: 'activity', optional: false, pass: 'half', overlap: true, duration: '3 hrs' },
-          { text: 'Train back to Interlaken', detail: '~35 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '35 min' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Check into apartment properly (after 4 PM)', detail: 'Unpack for the week. Get comfortable.', type: 'logistics' },
-          { text: 'Dinner: instant noodles at home', detail: 'Tired from travel + Grindelwald. Easy night in.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Train to Interlaken', detail: 'Brünig Pass route (~1h50). Sit RIGHT. Half Fare: ~CHF 17/pp.', type: 'transit', pass: 'half', duration: '1 hr 50 min' },
+        { text: 'Drop bags at apartment + Coop shop', detail: 'Alpenstrasse 2 (~5 min from Ost). Check-in 4–7 PM. BIG SHOP for the week.', type: 'logistics', duration: '30 min' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: 'Grindelwald First with Betsy', detail: 'Train (~35 min) + gondola (~25 min). Cliff walk, views, mountain cart. Half Fare: 50% off.', type: 'activity', pass: 'half', overlap: true, duration: '3 hrs' },
+        { text: 'Train back to Interlaken', detail: '~35 min.', type: 'transit', pass: 'half', duration: '35 min' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Check in properly (after 4 PM). Settle in.', detail: 'Home for 5 nights.', type: 'logistics' },
+        { text: 'Dinner: instant noodles at home', detail: 'Tired. Easy night.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: 'Picnic at Grindelwald First (bread + cheese + salami from Coop)' },
-      { type: 'Dinner', plan: 'Instant noodles at home — settling in night' }
+      { type: 'Lunch', plan: 'Picnic at First summit (bread + cheese + salami)' },
+      { type: 'Dinner', plan: 'Instant noodles — settling in' }
     ],
     notes: [
-      { type: 'verify', text: 'Grindelwald First mountain cart / trottibike: confirm open + ticket price' },
-      { type: 'tip', text: '🛒 BIG SHOP DAY at Coop — stock up for the whole week (see Overview for list)' },
-      { type: 'tip', text: 'Brünig Pass route is one of the most scenic train rides in Switzerland — sit RIGHT side' },
-      { type: 'tip', text: 'Pack picnic BEFORE getting on gondola — no shops at the top' }
+      { type: 'verify', text: 'First mountain cart: open + price?' },
+      { type: 'tip', text: '🛒 BIG SHOP at Coop Interlaken — stock up for the week (~CHF 80)' },
+      { type: 'tip', text: 'Pack picnic BEFORE gondola — no shops at top' }
     ],
-    groceries: { store: '🛒 KEY SHOP: Coop Interlaken (near Ost station). BIG SHOP for the week.', wine: 'Same Coop has wine/beer. Denner on Jungfraustrasse for cheaper alcohol.', note: 'Buy everything for 5 days. See grocery list in Overview. ~CHF 80–100.' },
-    picnic: { spot: 'Grindelwald First summit — benches with panoramic mountain views.', tip: 'Pack picnic from Coop BEFORE heading up. No shops at the top.' }
+    groceries: { store: '🛒 KEY: Coop Interlaken (near Ost). BIG SHOP.', wine: 'Coop or Denner (Jungfraustrasse).', note: 'Buy for 5 days. Bread, cheese, salami, fruit, chocolate, wine, beer, coffee, noodle backup.' },
+    picnic: { spot: 'Grindelwald First summit.', tip: 'Pack from Coop before heading up.' }
   },
   {
     date: 'June 23',
     day: 'Tuesday',
     city: 'Interlaken',
     hotel: 'Victoria View Apartments 2',
-    summary: 'Iseltwald (CLOY), Panoramabrücke Sigriswil, Thun with Betsy',
+    summary: 'Iseltwald, Sigriswil, Thun with Betsy',
     overlap: true,
-    weather: { temp: '17–25°C (63–77°F)', condition: 'Warm, pleasant. Great for lakeside activities.', layers: 'T-shirt + sunscreen. Light layer for evening.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Bus to Iseltwald — CLOY dock photo op', detail: 'Bus 103 from Interlaken Ost, ~25 min. Half Fare: 50% off. Famous dock + turquoise lake. Allow 30–45 min.', type: 'activity', optional: false, pass: 'half', duration: '45 min' },
-          { text: 'Bus back to Interlaken', detail: '~25 min.', type: 'transit', pass: 'half', duration: '25 min' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: 'Bus to Panoramabrücke Sigriswil', detail: '~20 min from Interlaken. Half Fare: 50% off. Suspension bridge with Alps + Lake Thun views. Free to cross.', type: 'activity', optional: false, pass: 'half', duration: '45 min' },
-          { text: 'Transit to Thun → afternoon with Betsy', detail: 'Obere Hauptgasse (two-level street), Thun Castle, Schloss Schadau park, gelato. Betsy\'s last night in Switzerland.', type: 'activity', optional: true, overlap: true, duration: '3 hrs' },
-          { text: 'Train back to Interlaken', detail: '~20 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '20 min' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Dinner: bread + cheese + salami at home', detail: 'You had gelato/snacks in Thun. Keep it simple — picnic dinner on the couch.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Bus to Iseltwald — CLOY dock', detail: 'Bus 103, ~25 min. Half Fare: 50% off. 30–45 min at dock.', type: 'activity', pass: 'half', duration: '45 min' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: 'Panoramabrücke Sigriswil', detail: 'Bus ~20 min. Suspension bridge, free. Skip if day feels packed.', type: 'activity', optional: true, pass: 'half', duration: '45 min' },
+        { text: 'Thun with Betsy', detail: 'Obere Hauptgasse, castle, Schloss Schadau, gelato. Betsy\'s last night.', type: 'activity', overlap: true, duration: '3 hrs' },
+        { text: 'Train back', detail: '~20 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '20 min' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Dinner: bread + cheese + salami at home', detail: 'Gelato in Thun filled you up. Picnic dinner on the couch.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: 'Picnic at Iseltwald lakeside or snacks in Thun (gelato counts)' },
-      { type: 'Dinner', plan: 'Bread + cheese + salami at home (same as picnic, on the couch)' }
+      { type: 'Lunch', plan: 'Snacks in Thun or picnic at Iseltwald' },
+      { type: 'Dinner', plan: 'Bread + cheese + salami at home' }
     ],
     notes: [
-      { type: 'optional', text: 'Thun is optional if tired — but try since it\'s Betsy\'s last night' },
-      { type: 'verify', text: 'Iseltwald dock: entry fee? Thun Castle: Tuesday hours? Sigriswil: bus route?' },
-      { type: 'tip', text: 'Thun\'s Obere Hauptgasse — shops at street level AND on rooftops below. Very photogenic.' }
+      { type: 'optional', text: 'Sigriswil is skippable if day feels too packed. Thun is the priority.' },
+      { type: 'verify', text: 'Iseltwald dock fee? | Thun Castle Tue hours? | Sigriswil bus route?' }
     ],
-    groceries: { store: 'Already stocked. Coop Thun available if needed.', wine: 'From Monday shop.', note: 'Pack picnic/snacks from home before leaving.' },
-    picnic: { spot: 'Iseltwald lakeside benches (morning) or Schloss Schadau park in Thun (afternoon).', tip: 'Iseltwald has crystal-clear water — gorgeous morning snack spot.' }
+    groceries: { store: 'Stocked. Coop Thun available if needed.', wine: 'From Monday.', note: 'Pack snacks from home.' },
+    picnic: { spot: 'Iseltwald lakeside (morning) or Schloss Schadau park (afternoon).', tip: 'Iseltwald = crystal-clear water, gorgeous snack spot.' }
   },
   {
     date: 'June 24',
     day: 'Wednesday',
     city: 'Interlaken',
     hotel: 'Victoria View Apartments 2',
-    summary: 'Lauterbrunnen + Mürren day, optional Harder Kulm sunset',
+    summary: 'Lauterbrunnen + Mürren, optional Harder Kulm sunset',
     overlap: false,
-    weather: { temp: 'Valley: 17–25°C. Mürren: 12–18°C (54–64°F).', condition: 'Warm in valley. Cooler in Mürren.', layers: 'Light jacket for Mürren. Extra layer if doing Harder Kulm at sunset.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Train to Lauterbrunnen', detail: 'Interlaken Ost → Lauterbrunnen, ~20 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '20 min' },
-          { text: 'Staubbach Falls + valley wander', detail: '297m waterfall visible from village. Walk to base. Dramatic cliff walls. Very photogenic.', type: 'activity', optional: false, duration: '50 min' },
-          { text: 'Picnic lunch in the valley', detail: 'Bench or grassy spot with waterfall views.', type: 'food', duration: '30 min' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: 'Cable car to Grütschalp → train to Mürren', detail: 'Half Fare: 50% off. ~25 min total.', type: 'transit', pass: 'half', duration: '25 min' },
-          { text: 'Mürren village', detail: 'Car-free cliffside village. Panoramic views of Eiger, Mönch, Jungfrau. Wander, find viewpoints, grab coffee. No agenda.', type: 'activity', optional: false, duration: '2 hrs' },
-          { text: 'Optional: Allmendhubel funicular + flower trail', detail: 'Short funicular up, easy 20-min trail. Half Fare: 50% off.', type: 'activity', optional: true, pass: 'half', duration: '45 min' },
-          { text: 'Return to Interlaken', detail: 'Reverse route. ~45 min total.', type: 'transit', pass: 'half', duration: '45 min' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Optional: Harder Kulm sunset', detail: 'Funicular 10 min from Ost station. Panoramic views of both lakes + Jungfrau at golden hour (~8–9 PM). Half Fare: 50% off. Last funicular down ~9:30 PM (verify).', type: 'activity', optional: true, pass: 'half', duration: '1.5 hrs' },
-          { text: 'Dinner: Korean at Aare', detail: 'One proper dinner out this week. ~10 min walk from apartment. You\'ve earned it after Mürren.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Train to Lauterbrunnen', detail: '~20 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '20 min' },
+        { text: 'Staubbach Falls + valley wander', detail: '297m waterfall. Walk to base. Dramatic cliffs.', type: 'activity', duration: '50 min' },
+        { text: 'Picnic lunch in the valley', detail: 'Bench with waterfall views.', type: 'food', duration: '30 min' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: 'Cable car + train to Mürren', detail: 'Half Fare: 50% off. ~25 min.', type: 'transit', pass: 'half', duration: '25 min' },
+        { text: 'Mürren village', detail: 'Car-free. Eiger/Mönch/Jungfrau views. Wander, coffee, no agenda.', type: 'activity', duration: '2 hrs' },
+        { text: 'Optional: Allmendhubel flower trail', detail: 'Short funicular + 20 min trail. Half Fare: 50% off.', type: 'activity', optional: true, pass: 'half', duration: '45 min' },
+        { text: 'Return to Interlaken', detail: '~45 min reverse route.', type: 'transit', pass: 'half', duration: '45 min' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Optional: Harder Kulm sunset (~7:30 PM)', detail: 'Both lakes + Jungfrau at golden hour. Half Fare: 50% off. Sunset ~9:15 PM.', type: 'activity', optional: true, pass: 'half', duration: '1.5 hrs' },
+        { text: 'Dinner: Korean at Aare', detail: 'One dinner out this week. ~10 min walk. You earned it.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: 'Picnic in Lauterbrunnen valley (bread + cheese + salami + wine)' },
+      { type: 'Lunch', plan: 'Picnic in Lauterbrunnen (bread + cheese + salami + wine)' },
       { type: 'Dinner', plan: '🍜 Korean at Aare — one dinner out this week' }
     ],
     notes: [
-      { type: 'verify', text: 'Harder Kulm: confirm summer evening hours. Last ride down ~9:30 PM?' },
-      { type: 'tip', text: 'Mürren = same Jungfrau views as CHF 200 Jungfraujoch — for free' },
-      { type: 'tip', text: 'Sunset ~9:15 PM in late June. Harder Kulm at 7:30–8 PM = golden hour.' },
-      { type: 'tip', text: '🛒 Mid-week top-up: grab fresh bread + fruit at Coop if needed (on the way home)' }
+      { type: 'verify', text: 'Harder Kulm: evening hours? Last ride down?' },
+      { type: 'tip', text: 'Mürren = free Jungfrau views (vs CHF 200 at Jungfraujoch)' },
+      { type: 'tip', text: '🛒 Mid-week top-up at Coop if needed (fresh bread, fruit)' }
     ],
-    groceries: { store: 'Mid-week top-up if needed: Coop Interlaken (5 min from apartment). Fresh bread, fruit, wine.', wine: 'Top up if running low.', note: 'Optional quick stop — only if you need fresh bread or ran out of something.' },
-    picnic: { spot: 'Lauterbrunnen valley — benches near Staubbach Falls with waterfall + cliff views.', tip: 'Valley picnic with wine + waterfall views = peak Switzerland.' }
+    groceries: { store: 'Optional top-up: Coop Interlaken. Fresh bread + fruit.', wine: 'Top up if low.', note: 'Quick stop only if needed.' },
+    picnic: { spot: 'Lauterbrunnen valley — benches near Staubbach Falls.', tip: 'Wine + waterfall views = peak Switzerland.' }
   },
   {
     date: 'June 25',
     day: 'Thursday',
     city: 'Interlaken',
     hotel: 'Victoria View Apartments 2',
-    summary: 'Spa day at Victoria-Jungfrau',
+    summary: 'Spa day',
     overlap: false,
-    weather: { temp: '17–25°C (63–77°F)', condition: 'Warm. You\'ll be indoors mostly.', layers: 'Comfortable clothes. Swimsuit + flip flops for spa.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: '10:00 AM — Victoria-Jungfrau Spa: facilities', detail: 'Pool, sauna, steam room. ~5 min walk from apartment.', type: 'activity', optional: false, reservation: 'booked', duration: '2 hrs' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: '12:00 PM — Massage', detail: 'Pre-booked.', type: 'activity', optional: false, reservation: 'booked', duration: '1 hr' },
-          { text: '1:00 PM — Lunch at Victoria-Jungfrau', detail: 'Hotel restaurant. Treat yourself.', type: 'food', duration: '1 hr' },
-          { text: 'Linger at facilities or head home', detail: 'No rush.', type: 'activity', optional: true },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Dinner: cup noodles at home', detail: 'Recovery night. Big lunch covers you. Zero effort required.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: '10:00 AM — Spa facilities', detail: 'Pool, sauna, steam. ~5 min walk from apartment.', type: 'activity', reservation: 'booked', duration: '2 hrs' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '12:00 PM — Massage', detail: 'Pre-booked.', type: 'activity', reservation: 'booked', duration: '1 hr' },
+        { text: '1:00 PM — Lunch at Victoria-Jungfrau', detail: 'Hotel restaurant.', type: 'food', duration: '1 hr' },
+        { text: 'Linger or head home', detail: 'No rush.', type: 'activity', optional: true },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Cup noodles at home', detail: 'Recovery night.', type: 'food' },
+      ]}
     ],
     meals: [
       { type: 'Lunch', plan: 'Victoria-Jungfrau restaurant' },
-      { type: 'Dinner', plan: 'Cup noodles at home — spa recovery night' }
+      { type: 'Dinner', plan: 'Cup noodles — recovery night' }
     ],
-    notes: [
-      { type: 'tip', text: 'Good day for laundry if apartment has facilities' }
-    ],
-    groceries: { store: 'No shopping needed. Use existing supplies.', wine: 'Open a bottle tonight — you deserve it.', note: 'Low-key day.' },
+    notes: [{ type: 'tip', text: 'Good day for laundry if apartment has facilities.' }],
+    groceries: { store: 'No shopping needed.', wine: 'Open a bottle tonight.', note: 'Low-key day.' },
     picnic: null
   },
   {
@@ -344,92 +409,69 @@ const itinerary = [
     day: 'Friday',
     city: 'Interlaken',
     hotel: 'Victoria View Apartments 2',
-    summary: 'Oeschinen Lake — scenic hike day',
+    summary: 'Oeschinen Lake — scenic hike',
     overlap: false,
-    weather: { temp: 'Valley: 17–25°C. Oeschinen Lake (1,578m): 12–18°C.', condition: 'Cooler at lake. Breezy. Sun strong at altitude.', layers: 'Light jacket + sunscreen + hat. Comfortable shoes (easy trail but uneven).' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Pack BEST picnic — this is the one', detail: 'Bread + Gruyère + salami + grapes + chocolate + wine. Go all out.', type: 'food', duration: '15 min' },
-          { text: 'Train to Kandersteg', detail: 'Interlaken Ost → Spiez → Kandersteg, ~50 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '50 min' },
-          { text: 'Gondola up + walk down to lake', detail: '10 min walk to gondola, 5 min ride up (Half Fare: 50% off), then 20–30 min easy downhill walk to lake.', type: 'activity', optional: false, pass: 'half', duration: '45 min' },
-          { text: 'Oeschinen Lake', detail: 'Turquoise alpine lake, dramatic cliffs. Walk around lake (~1 hr easy loop). Find picnic spot. Take ALL the photos.', type: 'activity', optional: false, duration: '1.5–2 hrs' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: '🏆 Picnic lunch at the lake', detail: 'Best picnic spot of the entire trip. Bench or flat rock by the water.', type: 'food', duration: '45 min' },
-          { text: 'Walk back up + optional toboggan', detail: '30–40 min uphill (moderate). Rodelbahn at gondola station (~CHF 8, optional).', type: 'activity', optional: true, duration: '45 min' },
-          { text: 'Train back to Interlaken', detail: '~50 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '50 min' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Pack for Zermatt tomorrow', detail: 'Last night. Clean out fridge.', type: 'logistics' },
-          { text: 'Dinner: clean out fridge + instant noodles', detail: 'Use up whatever\'s left. Bread, cheese, fruit, noodles. Last supper at home.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Pack BEST picnic', detail: 'Bread, cheese, salami, grapes, chocolate, wine. Go all out.', type: 'food', duration: '15 min' },
+        { text: 'Train to Kandersteg', detail: '~50 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '50 min' },
+        { text: 'Gondola up + walk to lake', detail: 'Gondola 5 min (Half Fare 50% off) + 20–30 min downhill walk.', type: 'activity', pass: 'half', duration: '35 min' },
+        { text: 'Oeschinen Lake', detail: 'Turquoise lake, dramatic cliffs. Loop walk ~1 hr.', type: 'activity', duration: '1.5–2 hrs' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '🏆 Picnic at the lake', detail: 'Best spot of the trip.', type: 'food', duration: '45 min' },
+        { text: 'Walk back up + optional toboggan', detail: '30–40 min uphill. Rodelbahn ~CHF 8.', type: 'activity', optional: true, duration: '45 min' },
+        { text: 'Train back', detail: '~50 min.', type: 'transit', pass: 'half', duration: '50 min' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Pack for Zermatt. Clean out fridge.', detail: 'Last night.', type: 'logistics' },
+        { text: 'Dinner: whatever\'s left + noodles', detail: 'Use it up.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: '🏆 BEST PICNIC — Oeschinen Lake. Bread, Gruyère, salami, grapes, chocolate, wine.' },
-      { type: 'Dinner', plan: 'Clean out fridge — whatever\'s left + noodles. Last night!' }
+      { type: 'Lunch', plan: '🏆 BEST PICNIC — Oeschinen Lake' },
+      { type: 'Dinner', plan: 'Clean out fridge + noodles' }
     ],
     notes: [
-      { type: 'tip', text: 'Wife\'s scenic hike day! ~1.5–2 hrs total walking (down + loop + back up). Mostly easy.' },
-      { type: 'verify', text: 'Oeschinen gondola: confirm summer 2026 schedule' },
-      { type: 'tip', text: 'Pack picnic BEFORE leaving — no shops at lake or gondola' }
+      { type: 'verify', text: 'Oeschinen gondola: summer 2026 schedule?' },
+      { type: 'tip', text: 'Pack picnic BEFORE leaving. No shops at lake.' }
     ],
-    groceries: { store: 'No shopping. Use up remaining supplies today.', wine: 'Bring remaining wine/beer to the lake!', note: 'Use up all perishables — leaving for Zermatt tomorrow.' },
-    picnic: { spot: '🏆 Oeschinen Lake — flat rocks and benches at turquoise water\'s edge, surrounded by 3,000m cliffs.', tip: 'Best picnic of the trip. Go all out.' }
+    groceries: { store: 'No shopping. Use remaining supplies.', wine: 'Bring remaining to the lake!', note: 'Use up everything today.' },
+    picnic: { spot: '🏆 Oeschinen Lake — turquoise water, 3,000m cliffs.', tip: 'Best picnic of the trip. Go all out.' }
   },
   {
     date: 'June 27',
     day: 'Saturday',
     city: 'Zermatt',
     hotel: 'Tradition Julen Hotel',
-    summary: 'Travel to Zermatt, Gornergrat + Riffelsee, Schäferstube fondue',
+    summary: 'Gornergrat + Riffelsee, Schäferstube fondue',
     overlap: false,
-    weather: { temp: 'Village: 12–20°C. Gornergrat (3,100m): 0–8°C. Riffelsee: 3–10°C.', condition: '⚠️ COLD at altitude. Wind chill significant.', layers: '⚠️ WARM JACKET + FLEECE + HAT + GLOVES for Gornergrat. Near freezing at 3,100m.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Check out apartment. Train to Zermatt.', detail: 'Interlaken Ost → Spiez → Visp → Zermatt, ~2.5 hrs. Half Fare: ~CHF 35/person.', type: 'transit', pass: 'half', duration: '2.5 hrs' },
-          { text: '~12:00 PM — Arrive Zermatt. Drop bags at Tradition Julen Hotel.', detail: '~10 min walk from station. Car-free village.', type: 'logistics', duration: '15 min' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: '~1:00 PM — Gornergrat Railway', detail: 'Cogwheel train, 33 min to summit (3,100m). Half Fare: 50% off (~CHF 50/person). Sit RIGHT side for Matterhorn views.', type: 'activity', optional: false, pass: 'half', duration: '33 min' },
-          { text: 'Gornergrat summit', detail: 'Viewing platform. Matterhorn panorama, glaciers, 29 peaks over 4,000m. Warm drink at Kulmhotel if cold.', type: 'activity', optional: false, duration: '40 min' },
-          { text: 'Train down → get off at Rotenboden → Riffelsee walk', detail: '20 min flat walk to lake — THE Matterhorn reflection photo. Then 20 min to Riffelberg station, train down.', type: 'activity', optional: false, duration: '45 min' },
-          { text: 'Back in Zermatt by ~3:30 PM', detail: 'Rest, warm up, shower.', type: 'logistics' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Village wander — Hinterdorf quarter', detail: 'Old dark-wood Valais chalets. Photogenic, quiet. Bahnhofstrasse for shops.', type: 'activity', optional: true, duration: '1 hr' },
-          { text: '🛒 Coop Zermatt — stock up', detail: 'Buy snacks for Sunday (limited hours tomorrow) + train picnic supplies for June 29 departure.', type: 'food', duration: '15 min' },
-          { text: '6:00 PM — FONDUE at Schäferstube', detail: 'Hotel\'s fondue restaurant. Booked. Walk downstairs!', type: 'food', reservation: 'booked' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Train to Zermatt', detail: '~2.5 hrs. Half Fare: ~CHF 35/pp.', type: 'transit', pass: 'half', duration: '2.5 hrs' },
+        { text: '~12:00 PM — Drop bags at hotel', detail: '~10 min walk. Car-free village.', type: 'logistics', duration: '15 min' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '~1:00 PM — Gornergrat Railway', detail: '33 min to 3,100m. Half Fare: 50% off (~CHF 50/pp). Sit RIGHT.', type: 'activity', pass: 'half', duration: '33 min' },
+        { text: 'Gornergrat summit', detail: 'Matterhorn panorama. Warm drink if cold.', type: 'activity', duration: '40 min' },
+        { text: 'Riffelsee walk (get off at Rotenboden)', detail: '20 min to lake — Matterhorn reflection photo. 20 min to Riffelberg, train down.', type: 'activity', duration: '45 min' },
+      ]},
+      { time: 'Evening', items: [
+        { text: '🛒 Coop Zermatt', detail: 'Sunday supplies + June 29 train picnic.', type: 'food', duration: '15 min' },
+        { text: 'Village wander — Hinterdorf', detail: 'Old chalets. Photogenic.', type: 'activity', optional: true, duration: '1 hr' },
+        { text: '6:00 PM — FONDUE at Schäferstube', detail: 'Booked. Walk downstairs!', type: 'food', reservation: 'booked' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: 'Quick snack at station/hotel before Gornergrat (don\'t delay — go up ASAP)' },
-      { type: 'Dinner', plan: '🧀 FONDUE at Schäferstube — 6:00 PM ✅' }
+      { type: 'Lunch', plan: 'Quick snack before Gornergrat (don\'t delay!)' },
+      { type: 'Dinner', plan: '🧀 Schäferstube fondue — 6 PM ✅' }
     ],
     notes: [
-      { type: 'reservation', text: 'Schäferstube fondue: BOOKED — June 27, 6:00 PM ✅' },
-      { type: 'tip', text: 'Gornergrat: go ASAP — clouds build in afternoon. 1 PM is ideal.' },
-      { type: 'tip', text: 'Sit RIGHT side of train for Matterhorn views on ascent' },
-      { type: 'tip', text: '🛒 GROCERY STOP: Coop Zermatt — buy for Sunday + June 29 train picnic' }
+      { type: 'reservation', text: 'Schäferstube: BOOKED — Jun 27, 6 PM ✅' },
+      { type: 'tip', text: 'Gornergrat ASAP — clouds build in afternoon' },
+      { type: 'tip', text: '🛒 Coop Zermatt: buy for Sunday + Jun 29 train picnic' }
     ],
-    groceries: { store: '🛒 KEY SHOP: Coop Zermatt (Bahnhofstrasse, ~5 min from hotel). Open Saturday.', wine: 'Same Coop. Or enjoy wine with fondue tonight.', note: 'Buy for Sunday (Coop may have limited hours) + train picnic for June 29 (bread, cheese, salami, fruit, chocolate, drinks).' },
+    groceries: { store: '🛒 KEY: Coop Zermatt (Bahnhofstrasse).', wine: 'Same Coop.', note: 'Buy Sunday supplies + train picnic for Jun 29 (bread, cheese, salami, fruit, chocolate, drinks).' },
     picnic: null
   },
   {
@@ -437,129 +479,89 @@ const itinerary = [
     day: 'Sunday',
     city: 'Zermatt',
     hotel: 'Tradition Julen Hotel',
-    summary: 'Glacier Paradise + Gorner Gorge, village chill',
+    summary: 'Glacier Paradise + Gorner Gorge',
     overlap: false,
-    weather: { temp: 'Village: 12–20°C. Glacier Paradise (3,883m): -5–3°C.', condition: '⚠️ VERY COLD at Glacier Paradise. Snow/ice year-round.', layers: '⚠️⚠️ FULL WINTER LAYERS: warm jacket, fleece, hat, gloves, scarf. FREEZING at 3,883m.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: '~9:00 AM — Cable car to Glacier Paradise', detail: 'South end of village (~15 min walk). Multiple stages to 3,883m. ~45 min ride. Half Fare: 50% off (~CHF 50/person). Go EARLY for visibility.', type: 'activity', optional: false, pass: 'half', duration: '45 min' },
-          { text: 'Glacier Paradise summit', detail: 'Viewing platform (360°, see into Italy). Ice Palace (10 min). ~1–1.5 hrs at top.', type: 'activity', optional: false, duration: '1.25 hrs' },
-          { text: 'Cable car back down', detail: '~45 min.', type: 'transit', duration: '45 min' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: 'Lunch: café in village or Coop bench picnic', detail: 'Find a Matterhorn-view terrace. Or grab from Saturday\'s Coop supplies.', type: 'food', duration: '1 hr' },
-          { text: 'Gorner Gorge', detail: '~15 min walk south. Boardwalk through narrow canyon, rushing glacial water. ~45 min. Entry ~CHF 5/person.', type: 'activity', optional: false, duration: '1 hr' },
-          { text: 'Village chill', detail: 'Done with activities! Shops, café terrace, rest. Last afternoon in Zermatt.', type: 'activity', optional: true },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Dinner: casual — Coop supplies or village restaurant', detail: 'Fondue was last night. Keep it light.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: '~9:00 AM — Glacier Paradise cable car', detail: '~45 min to 3,883m. Half Fare: 50% off (~CHF 50/pp). Go EARLY.', type: 'activity', pass: 'half', duration: '45 min' },
+        { text: 'Summit: viewing platform + Ice Palace', detail: '360° views. See into Italy. ~1–1.5 hrs.', type: 'activity', duration: '1.25 hrs' },
+        { text: 'Cable car down', detail: '~45 min.', type: 'transit', duration: '45 min' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: 'Lunch: village café or Coop bench picnic', detail: 'Matterhorn-view terrace.', type: 'food', duration: '1 hr' },
+        { text: 'Gorner Gorge', detail: '~15 min walk. Boardwalk through canyon. ~CHF 5. ~45 min.', type: 'activity', duration: '1 hr' },
+        { text: 'Village chill', detail: 'Shops, café, rest. Last afternoon here.', type: 'activity', optional: true },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Casual dinner — Coop supplies or village spot', detail: 'Keep it light after fondue last night.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: 'Village café or Coop bench picnic with Matterhorn views' },
-      { type: 'Dinner', plan: 'Casual — Saturday\'s Coop supplies or find a village spot' }
+      { type: 'Lunch', plan: 'Café or Coop bench picnic' },
+      { type: 'Dinner', plan: 'Casual — Saturday Coop supplies or village restaurant' }
     ],
     notes: [
-      { type: 'tip', text: 'Glacier Paradise EARLY for best visibility. Clouds build fast.' },
-      { type: 'verify', text: 'Gorner Gorge: confirm Sunday hours' },
-      { type: 'tip', text: '⚠️ Sunday: Coop may have limited hours. Use Saturday supplies.' }
+      { type: 'verify', text: 'Gorner Gorge: Sunday hours?' },
+      { type: 'tip', text: 'Glacier Paradise EARLY — clouds build fast at 3,883m' },
+      { type: 'tip', text: '⚠️ Sunday — Coop may be closed. Use Saturday supplies.' }
     ],
-    groceries: { store: '⚠️ SUNDAY — Coop may be closed or limited. Use Saturday\'s supplies.', wine: 'From Saturday.', note: 'You should be covered from yesterday\'s shop.' },
-    picnic: { spot: 'Benches on Bahnhofstrasse or park near church — Matterhorn views.', tip: 'Coop lunch on a bench with the Matterhorn = just as good as a CHF 40 restaurant.' }
+    groceries: { store: '⚠️ Sunday — likely closed. Use Saturday supplies.', wine: 'From Saturday.', note: 'Covered from yesterday.' },
+    picnic: { spot: 'Benches on Bahnhofstrasse with Matterhorn views.', tip: 'Coop bench lunch = just as good as CHF 40 restaurant.' }
   },
   {
     date: 'June 29',
     day: 'Monday',
     city: 'Zurich',
     hotel: 'Kameha Grand Zurich',
-    summary: 'Travel day — Zermatt to Zurich, rest',
+    summary: 'Travel day — train picnic — rest',
     overlap: false,
-    weather: { temp: '18–26°C (64–79°F)', condition: 'Warm in Zurich.', layers: 'T-shirt weather.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Breakfast + check out Tradition Julen', detail: 'No rush. Pack your train picnic from Saturday\'s Coop supplies.', type: 'logistics', duration: '1 hr' },
-          { text: '~10:00 AM — Train to Zurich', detail: 'Zermatt → Visp → Zurich HB, ~3.5 hrs. Half Fare: 50% off (~CHF 40/person). Scenic Rhône valley views.', type: 'transit', pass: 'half', duration: '3.5 hrs' },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: '🧺 Train picnic lunch', detail: 'Eat your packed lunch on the train — bread, cheese, salami, fruit, chocolate. Totally normal and encouraged on Swiss trains. Enjoy the views!', type: 'food', duration: '30 min' },
-          { text: '~1:30 PM — Arrive Zurich. Tram to Kameha Grand.', detail: '~20 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '20 min' },
-          { text: 'Check in. Rest. Done adventuring.', detail: 'Dufaux-Strasse 1, Glattpark. Near airport.', type: 'logistics' },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: 'Easy dinner — hotel restaurant or instant noodles', detail: 'Zero pressure. Whatever requires least effort.', type: 'food' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Check out. Pack train picnic.', detail: 'From Saturday\'s Coop supplies.', type: 'logistics', duration: '1 hr' },
+        { text: '~10:00 AM — Train to Zurich', detail: '~3.5 hrs. Half Fare: ~CHF 40/pp.', type: 'transit', pass: 'half', duration: '3.5 hrs' },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '🧺 Train picnic lunch', detail: 'Bread, cheese, salami, fruit, chocolate. Eat with Rhône valley views. Totally normal on Swiss trains.', type: 'food', duration: '30 min' },
+        { text: '~1:30 PM — Tram to Kameha Grand', detail: '~20 min. Half Fare: 50% off.', type: 'transit', pass: 'half', duration: '20 min' },
+        { text: 'Check in. Rest. Done.', detail: 'Near airport. No agenda.', type: 'logistics' },
+      ]},
+      { time: 'Evening', items: [
+        { text: 'Easy dinner', detail: 'Hotel restaurant or last noodles.', type: 'food' },
+      ]}
     ],
     meals: [
-      { type: 'Lunch', plan: '🧺 Train picnic — packed from Saturday\'s Coop Zermatt supplies' },
-      { type: 'Dinner', plan: 'Easy — hotel restaurant or last instant noodles' }
+      { type: 'Lunch', plan: '🧺 Train picnic (packed from Coop Zermatt)' },
+      { type: 'Dinner', plan: 'Hotel restaurant or noodles' }
     ],
     notes: [
-      { type: 'tip', text: 'Eating on Swiss trains is 100% normal. Pack your picnic before checkout!' },
-      { type: 'tip', text: 'SBB trains also have dining cars if you want to buy something on board.' },
-      { type: 'tip', text: 'Kameha Grand is near airport — no early morning stress tomorrow.' }
+      { type: 'tip', text: 'Eating on Swiss trains = 100% normal. Pack before checkout.' },
+      { type: 'tip', text: 'Kameha Grand near airport — no stress tomorrow.' }
     ],
-    groceries: { store: 'Coop at Zurich HB if you need anything for tonight.', wine: 'Grab a bottle for a final-night toast?', note: 'Minimal needs. Almost done!' },
-    picnic: { spot: 'The train itself! 3.5 hrs through the Rhône valley with mountain views out the window.', tip: 'Your final Swiss picnic — on the train. Pack it before checkout.' }
+    groceries: { store: 'Coop Zurich HB if needed.', wine: 'Final night toast?', note: 'Almost done!' },
+    picnic: { spot: 'The train! 3.5 hrs of mountain views.', tip: 'Final Swiss picnic — on the train.' }
   },
   {
     date: 'June 30',
     day: 'Tuesday',
-    city: 'Zurich → Boston → Toronto',
+    city: 'Zurich → Home',
     hotel: null,
-    summary: 'Departure day',
+    summary: 'Departure',
     overlap: false,
-    weather: { temp: '18–26°C', condition: 'Won\'t matter — airport!', layers: 'Comfortable travel clothes.' },
     sections: [
-      {
-        time: 'Morning',
-        items: [
-          { text: 'Relaxed breakfast. Check out.', detail: 'Hotel breakfast. No rush.', type: 'logistics', duration: '45 min' },
-          { text: '~10:00 AM — Head to Zurich Airport', detail: '~10–15 min from hotel. Half Fare: 50% off tram.', type: 'transit', pass: 'half', duration: '15 min' },
-          { text: 'Sprüngli café (airside)', detail: 'Famous Swiss chocolatier. Luxemburgerli (mini macarons). Last Swiss treat.', type: 'food', optional: true },
-        ]
-      },
-      {
-        time: 'Afternoon',
-        items: [
-          { text: '1:00 PM — Flight: Zurich → Boston', detail: 'SWISS LX 54, 1:00 PM – 3:10 PM', type: 'transit', pass: false },
-        ]
-      },
-      {
-        time: 'Evening',
-        items: [
-          { text: '7:15 PM — Flight: Boston → Toronto', detail: 'Air Canada AC 765, 7:15 PM – 9:10 PM', type: 'transit', pass: false },
-          { text: '~9:10 PM — HOME! 🎉', detail: 'You did Switzerland right.', type: 'logistics' },
-        ]
-      }
+      { time: 'Morning', items: [
+        { text: 'Breakfast. Check out. Airport.', detail: '~10–15 min to ZRH. Half Fare: 50% off tram.', type: 'logistics' },
+        { text: 'Sprüngli café (airside)', detail: 'Luxemburgerli. Last Swiss treat.', type: 'food', optional: true },
+      ]},
+      { time: 'Afternoon', items: [
+        { text: '1:00 PM — Zurich → Boston', detail: 'SWISS LX 54', type: 'transit', pass: false },
+      ]},
+      { time: 'Evening', items: [
+        { text: '7:15 PM — Boston → Toronto', detail: 'Air Canada AC 765. Home ~9:10 PM. 🎉', type: 'transit', pass: false },
+      ]}
     ],
-    meals: [
-      { type: 'Breakfast', plan: 'Hotel breakfast' },
-      { type: 'Lunch', plan: 'Sprüngli at airport or plane food' },
-      { type: 'Dinner', plan: 'Home!' }
-    ],
-    notes: [
-      { type: 'tip', text: 'Sprüngli Luxemburgerli = perfect last Swiss treat. Available airside.' }
-    ],
-    groceries: null,
-    picnic: null
+    meals: [{ type: 'Breakfast', plan: 'Hotel' }],
+    notes: [{ type: 'tip', text: 'Sprüngli Luxemburgerli = perfect last treat.' }],
+    groceries: null, picnic: null
   }
 ];
 
@@ -574,27 +576,39 @@ const overview = [
   { date: 'Jun 25', day: 'Thu', city: 'Interlaken', us: 'Spa Day', betsy: '—', overlap: false },
   { date: 'Jun 26', day: 'Fri', city: 'Interlaken', us: 'Oeschinen Lake', betsy: '—', overlap: false },
   { date: 'Jun 27', day: 'Sat', city: 'Zermatt', us: 'Gornergrat, Fondue 6PM', betsy: '—', overlap: false },
-  { date: 'Jun 28', day: 'Sun', city: 'Zermatt', us: 'Glacier Paradise, Gorner Gorge', betsy: '—', overlap: false },
+  { date: 'Jun 28', day: 'Sun', city: 'Zermatt', us: 'Glacier Paradise', betsy: '—', overlap: false },
   { date: 'Jun 29', day: 'Mon', city: 'Zurich', us: 'Travel + Rest', betsy: '—', overlap: false },
   { date: 'Jun 30', day: 'Tue', city: 'Zurich → Home', us: 'Departure', betsy: '—', overlap: false },
 ];
 
-const typeColors = {
-  activity: 'bg-emerald-50 border-emerald-200',
-  transit: 'bg-slate-50 border-slate-200',
-  food: 'bg-amber-50 border-amber-200',
-  logistics: 'bg-gray-50 border-gray-200',
-};
-
-const typeIcons = {
-  activity: '🏔️',
-  transit: '🚂',
-  food: '🍽️',
-  logistics: '🏨',
-};
+const typeColors = { activity: 'bg-emerald-50 border-emerald-200', transit: 'bg-slate-50 border-slate-200', food: 'bg-amber-50 border-amber-200', logistics: 'bg-gray-50 border-gray-200' };
+const typeIcons = { activity: '🏔️', transit: '🚂', food: '🍽️', logistics: '🏨' };
 
 export default function SwitzerlandItinerary() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [weatherData, setWeatherData] = useState({});
+  const [weatherLoading, setWeatherLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchWeather() {
+      setWeatherLoading(true);
+      const data = {};
+      for (const [key, loc] of Object.entries(locations)) {
+        try {
+          const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast/daily?lat=${loc.lat}&lon=${loc.lon}&cnt=16&appid=${API_KEY}&units=metric`);
+          if (res.ok) {
+            const json = await res.json();
+            data[key] = json.list || [];
+          }
+        } catch (e) {
+          console.log(`Weather fetch failed for ${key}`, e);
+        }
+      }
+      setWeatherData(data);
+      setWeatherLoading(false);
+    }
+    fetchWeather();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
@@ -603,145 +617,108 @@ export default function SwitzerlandItinerary() {
           <h1 className="text-3xl font-bold text-gray-900">🇨🇭 Switzerland Trip</h1>
           <p className="text-gray-500 mt-1">June 18 – 30, 2026 • Ping & Jahziel</p>
           <div className="flex flex-wrap gap-2 mt-4">
-            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">Zurich (Jun 19)</span>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Lucerne (Jun 20–21)</span>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Interlaken (Jun 22–26)</span>
-            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">Zermatt (Jun 27–28)</span>
-            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">Zurich (Jun 29–30)</span>
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">Zurich</span>
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Lucerne</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Interlaken</span>
+            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">Zermatt</span>
           </div>
+          {weatherLoading && <p className="text-xs text-gray-400 mt-3">Loading live weather...</p>}
         </div>
 
         <div className="flex overflow-x-auto gap-1 mb-6 bg-white rounded-xl p-2 shadow-sm border border-gray-100">
-          <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'overview' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Overview</button>
+          <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${activeTab === 'overview' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Overview</button>
           {itinerary.map((day) => (
-            <button key={day.date} onClick={() => setActiveTab(day.date)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === day.date ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} ${day.overlap ? 'ring-2 ring-pink-200' : ''}`}>{day.date.replace('June ', '')}</button>
+            <button key={day.date} onClick={() => setActiveTab(day.date)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${activeTab === day.date ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} ${day.overlap ? 'ring-2 ring-pink-200' : ''}`}>{day.date.replace('June ', '')}</button>
           ))}
         </div>
 
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Trip Timeline</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Timeline</h2>
               <div className="space-y-1">
                 {overview.map((day) => (
-                  <div key={day.date} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-100 ${day.overlap ? 'bg-pink-50 border border-pink-200' : 'bg-gray-50'}`} onClick={() => { const match = itinerary.find(d => d.date.includes(day.date.replace('Jun ', 'June '))); if (match) setActiveTab(match.date); }}>
+                  <div key={day.date} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-100 ${day.overlap ? 'bg-pink-50 border border-pink-200' : 'bg-gray-50'}`} onClick={() => { const m = itinerary.find(d => d.date.includes(day.date.replace('Jun ', 'June '))); if (m) setActiveTab(m.date); }}>
                     <div className="w-14 text-xs font-mono text-gray-500 shrink-0">{day.date}</div>
                     <div className="w-8 text-xs text-gray-400 shrink-0">{day.day}</div>
                     <div className="w-20 shrink-0"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${day.city.includes('Zurich') || day.city.includes('Home') ? 'bg-emerald-100 text-emerald-700' : day.city.includes('Lucerne') ? 'bg-blue-100 text-blue-700' : day.city.includes('Interlaken') ? 'bg-purple-100 text-purple-700' : day.city.includes('Zermatt') ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>{day.city.split(' →')[0]}</span></div>
                     <div className="flex-1 text-sm text-gray-600 truncate">{day.us}</div>
-                    {day.overlap && <span className="px-2 py-0.5 bg-pink-200 text-pink-800 rounded-full text-xs font-medium shrink-0">👯 Betsy</span>}
+                    {day.overlap && <span className="px-2 py-0.5 bg-pink-200 text-pink-800 rounded-full text-xs shrink-0">👯</span>}
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="bg-pink-50 rounded-2xl shadow-sm p-6 border border-pink-200">
-              <h2 className="text-xl font-bold text-pink-900 mb-3">👯 Betsy Overlap Days</h2>
+              <h2 className="text-xl font-bold text-pink-900 mb-3">👯 Betsy Overlap</h2>
               <div className="space-y-2 text-sm text-pink-800">
-                <p><strong>Jun 19 (Fri):</strong> Dinner at Zeughauskeller — 7:30 PM</p>
-                <p><strong>Jun 20 (Sat):</strong> Old Town Lucerne + Old Swiss House lunch (12:45, table for 4)</p>
-                <p><strong>Jun 22 (Mon):</strong> Grindelwald First together</p>
-                <p><strong>Jun 23 (Tue):</strong> Thun afternoon — Betsy's last night</p>
+                <p><strong>Jun 19:</strong> Zeughauskeller dinner — 7:30 PM</p>
+                <p><strong>Jun 20:</strong> Old Town + Old Swiss House lunch (12:45, table for 4)</p>
+                <p><strong>Jun 22:</strong> Grindelwald First</p>
+                <p><strong>Jun 23:</strong> Thun — Betsy's last night</p>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🎫 Swiss Half Fare Card</h2>
-              <p className="text-sm text-gray-500 mb-3">CHF 150/person (CHF 300 total) • Valid 1 month • 50% off everything</p>
-              <div className="p-3 bg-emerald-50 rounded-lg mb-3"><p className="text-sm text-emerald-700"><strong>Saves ~CHF 421</strong> vs. full price. Covers all 12 days — trains, buses, boats, cable cars, gondolas.</p></div>
-              <div className="p-3 bg-blue-50 rounded-lg"><p className="text-sm text-blue-700"><strong>How it works:</strong> NOT a tap card. Buy tickets on SBB Mobile app or at machines — select "Half Fare" discount. Pay by credit card. Show Half Fare Card if conductor checks. Pick up at Zurich Airport SBB counter on arrival (bring passports).</p></div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">🎫 Half Fare Card</h2>
+              <p className="text-sm text-gray-500 mb-3">CHF 150/person • 50% off everything • Buy at airport SBB counter on arrival</p>
+              <div className="p-3 bg-blue-50 rounded-lg"><p className="text-sm text-blue-700">NOT a tap card. Buy tickets on SBB app or machines — select "Half Fare." Show card if checked. Saves ~CHF 421 total.</p></div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🛒 Key Grocery Stops</h2>
-              <div className="space-y-3">
-                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 20 (Sat) — Coop Lucerne (at station):</strong> Buy snacks for Sunday (shops closed!) + evening nibbles</p></div>
-                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 22 (Mon) — Coop Interlaken (near Ost station):</strong> 🛒 BIG SHOP for the week (~CHF 80–100)</p></div>
-                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 24 or 25 — Coop Interlaken (quick pop-in):</strong> Fresh bread + fruit top-up</p></div>
-                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 27 (Sat) — Coop Zermatt:</strong> Sunday supplies + June 29 train picnic</p></div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">🛒 Key Grocery Stops</h2>
+              <div className="space-y-2">
+                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 20 (Sat):</strong> Coop Lucerne — Sunday supplies</p></div>
+                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 22 (Mon):</strong> Coop Interlaken — BIG SHOP (~CHF 80)</p></div>
+                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 24/25:</strong> Quick top-up — fresh bread + fruit</p></div>
+                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm text-green-800"><strong>Jun 27 (Sat):</strong> Coop Zermatt — Sunday + train picnic for Jun 29</p></div>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🧀 Interlaken Grocery List (June 22)</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">🧀 Interlaken Grocery List</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-3 bg-amber-50 rounded-lg">
                   <h3 className="font-semibold text-sm text-amber-800 mb-2">Fridge</h3>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Gruyère wedge (big) — CHF 8</li>
-                    <li>• Salami / dried meat × 2 — CHF 10</li>
-                    <li>• Butter (small) — CHF 3</li>
-                    <li>• Milk (small) — CHF 2</li>
-                    <li>• Wine × 2 bottles — CHF 16</li>
-                    <li>• Beer × 6 cans — CHF 8</li>
-                  </ul>
+                  <p className="text-sm text-gray-600">Cheese (brie, smoked gouda, or try Vacherin Fribourgeois) • Salami × 2 • Butter • Milk • Wine × 2 • Beer × 6</p>
                 </div>
                 <div className="p-3 bg-amber-50 rounded-lg">
                   <h3 className="font-semibold text-sm text-amber-800 mb-2">Shelf</h3>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Bread × 1 (buy fresh again mid-week) — CHF 3</li>
-                    <li>• Fruit (grapes, apples) — CHF 7</li>
-                    <li>• Chocolate bars × 4 — CHF 8</li>
-                    <li>• Nuts / trail mix — CHF 5</li>
-                    <li>• Coffee (instant or pods) — CHF 5</li>
-                    <li>• Birchermüesli × 1 (try it!) — CHF 3</li>
-                    <li>• Rivella × 2 (try it!) — CHF 4</li>
-                  </ul>
+                  <p className="text-sm text-gray-600">Bread × 1 • Grapes + apples • Chocolate × 4 • Nuts • Coffee • Birchermüesli × 1 (try it) • Rivella × 2 (try it)</p>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mt-3 italic">Already bringing: 4 instant noodle packs + 4 cup noodles. Total shop: ~CHF 82</p>
-              <p className="text-sm text-gray-500 mt-1 italic">Repeat picnic formula: bread + Gruyère + salami + fruit + chocolate + drink. Same every day — it works!</p>
+              <p className="text-sm text-gray-500 mt-3 italic">Repeat picnic: bread + cheese + salami + fruit + chocolate + drink. ~CHF 80 total. Swap in Coop deli salad tubs for variety.</p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🍷 Practical Tips</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <h3 className="font-semibold text-sm text-purple-800 mb-2">Drinking Outside</h3>
-                  <p className="text-sm text-gray-600">100% legal. No open container laws. Drink anywhere — parks, lakes, trains, benches.</p>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <h3 className="font-semibold text-sm text-purple-800 mb-2">Tipping</h3>
-                  <p className="text-sm text-gray-600">NOT expected. Service included by law. Rounding up is nice but optional.</p>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <h3 className="font-semibold text-sm text-purple-800 mb-2">Paying</h3>
-                  <p className="text-sm text-gray-600">Cards/Apple Pay accepted almost everywhere. Withdraw CHF 50–100 cash at airport ATM for rare exceptions.</p>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <h3 className="font-semibold text-sm text-purple-800 mb-2">Sunday Shopping</h3>
-                  <p className="text-sm text-gray-600">Most shops CLOSED. Station Coop/Migros may open limited hours. Stock up Saturday!</p>
-                </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">🍷 Tips</h2>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="p-2 bg-purple-50 rounded-lg"><strong>Drinking outside:</strong> 100% legal everywhere</div>
+                <div className="p-2 bg-purple-50 rounded-lg"><strong>Tipping:</strong> Not expected. Round up if you want.</div>
+                <div className="p-2 bg-purple-50 rounded-lg"><strong>Paying:</strong> Cards everywhere. CHF 50–100 cash from ATM.</div>
+                <div className="p-2 bg-purple-50 rounded-lg"><strong>Sundays:</strong> Shops closed! Station Coop may have limited hrs.</div>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🌡️ Weather & Layers</h2>
-              <div className="space-y-2">
-                <div className="p-3 bg-green-50 rounded-lg"><p className="text-sm"><strong className="text-green-800">Valley (Zurich, Lucerne, Interlaken): 17–26°C</strong> — T-shirt weather</p></div>
-                <div className="p-3 bg-yellow-50 rounded-lg"><p className="text-sm"><strong className="text-yellow-800">Mid-altitude (Mürren, Oeschinen, Zermatt): 12–20°C</strong> — Light jacket</p></div>
-                <div className="p-3 bg-orange-50 rounded-lg"><p className="text-sm"><strong className="text-orange-800">High (Pilatus, First, Gornergrat): 0–14°C</strong> — ⚠️ Warm jacket + fleece + hat</p></div>
-                <div className="p-3 bg-red-50 rounded-lg"><p className="text-sm"><strong className="text-red-800">Extreme (Glacier Paradise, 3,883m): -5–3°C</strong> — ⚠️⚠️ Full winter layers, gloves, scarf</p></div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">📋 Reservations</h2>
+              <div className="space-y-2 text-sm">
+                <div className="p-2 bg-green-50 rounded-lg">✅ Lindt — Jun 19, 4 PM</div>
+                <div className="p-2 bg-green-50 rounded-lg">✅ Zeughauskeller — Jun 19, 7:30 PM (2 + 4)</div>
+                <div className="p-2 bg-green-50 rounded-lg">✅ Old Swiss House — Jun 20, 12:45 (4) + 1:15 (2)</div>
+                <div className="p-2 bg-green-50 rounded-lg">✅ Victoria-Jungfrau Spa — Jun 25, 10 AM + massage</div>
+                <div className="p-2 bg-green-50 rounded-lg">✅ Schäferstube fondue — Jun 27, 6 PM</div>
+                <div className="p-2 bg-blue-50 rounded-lg">🔍 Verify: Pilatus open? | Banh Mi Pho Sun hrs? | Korean Aare hrs? | First cart? | Harder Kulm evening? | Oeschinen gondola? | Iseltwald fee? | Sigriswil bus? | Thun Castle Tue? | Gorner Gorge Sun? | Coop Zermatt Sun?</div>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">📋 Reservations</h2>
-              <div className="space-y-2">
-                <div className="p-2 bg-green-50 rounded-lg flex gap-3"><span className="text-green-600 font-bold text-sm w-16 shrink-0">BOOKED</span><span className="text-sm">Lindt — Jun 19, 4 PM</span></div>
-                <div className="p-2 bg-green-50 rounded-lg flex gap-3"><span className="text-green-600 font-bold text-sm w-16 shrink-0">BOOKED</span><span className="text-sm">Zeughauskeller — Jun 19, 7:30 PM (tables for 2 + 4)</span></div>
-                <div className="p-2 bg-green-50 rounded-lg flex gap-3"><span className="text-green-600 font-bold text-sm w-16 shrink-0">BOOKED</span><span className="text-sm">Old Swiss House — Jun 20, 12:45 PM (4) + 1:15 PM (2)</span></div>
-                <div className="p-2 bg-green-50 rounded-lg flex gap-3"><span className="text-green-600 font-bold text-sm w-16 shrink-0">BOOKED</span><span className="text-sm">Victoria-Jungfrau Spa — Jun 25, 10 AM + 12 PM massage</span></div>
-                <div className="p-2 bg-green-50 rounded-lg flex gap-3"><span className="text-green-600 font-bold text-sm w-16 shrink-0">BOOKED</span><span className="text-sm">Schäferstube fondue — Jun 27, 6 PM</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Pilatus — summer 2026 opening</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Banh Mi Pho Luzern — Sunday hours</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Korean Aare — hours (for Jun 24)</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Grindelwald First mountain cart — open + price</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Harder Kulm — evening hours</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Oeschinen gondola — summer 2026 schedule</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Iseltwald dock — fee? | Sigriswil — bus route? | Thun Castle — Tue hours?</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Gorner Gorge — Sunday hours | Coop Zermatt — Sunday hours</span></div>
-                <div className="p-2 bg-blue-50 rounded-lg flex gap-3"><span className="text-blue-600 font-bold text-sm w-16 shrink-0">VERIFY</span><span className="text-sm">Half Fare Card — 2026 pricing + purchase for Canadians</span></div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">🌡️ Layers Guide</h2>
+              <div className="space-y-2 text-sm">
+                <div className="p-2 bg-green-50 rounded-lg"><strong>Valley (17–26°C):</strong> T-shirt</div>
+                <div className="p-2 bg-yellow-50 rounded-lg"><strong>Mid-altitude (12–20°C):</strong> Light jacket</div>
+                <div className="p-2 bg-orange-50 rounded-lg"><strong>High (0–14°C):</strong> ⚠️ Warm jacket + fleece + hat</div>
+                <div className="p-2 bg-red-50 rounded-lg"><strong>Extreme / Glacier Paradise (-5–3°C):</strong> ⚠️⚠️ Full winter layers</div>
               </div>
             </div>
           </div>
@@ -762,18 +739,7 @@ export default function SwitzerlandItinerary() {
                 <p className="mt-3 text-gray-700 font-medium">{day.summary}</p>
               </div>
 
-              {day.weather && (
-                <div className="bg-sky-50 rounded-2xl shadow-sm p-4 border border-sky-200">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">🌡️</span>
-                    <div>
-                      <p className="font-medium text-sky-900">{day.weather.temp}</p>
-                      <p className="text-sm text-sky-700 mt-1">{day.weather.condition}</p>
-                      <p className="text-sm text-sky-800 mt-1 font-medium">👕 {day.weather.layers}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <WeatherCard date={day.date} weatherData={weatherData} />
 
               {day.sections.map((section) => (
                 <div key={section.time} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
@@ -787,10 +753,9 @@ export default function SwitzerlandItinerary() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-gray-900">{item.text}</p>
                               {item.optional && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full text-xs">Optional</span>}
-                              {item.reservation === 'booked' && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">✅ Booked</span>}
+                              {item.reservation === 'booked' && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">✅</span>}
                               {item.pass === 'half' && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs">🔖 50%</span>}
-                              {item.pass === false && item.type === 'transit' && <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-full text-xs">✈️</span>}
-                              {item.overlap && <span className="px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full text-xs">👯 Betsy</span>}
+                              {item.overlap && <span className="px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full text-xs">👯</span>}
                               {item.duration && <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">⏱️ {item.duration}</span>}
                             </div>
                             <p className="text-sm text-gray-500 mt-1">{item.detail}</p>
@@ -805,48 +770,33 @@ export default function SwitzerlandItinerary() {
               {day.meals && day.meals.length > 0 && (
                 <div className="bg-amber-50 rounded-2xl shadow-sm p-6 border border-amber-200">
                   <h3 className="text-lg font-semibold text-amber-900 mb-3">🍽️ Meals</h3>
-                  <div className="space-y-2">
-                    {day.meals.map((meal, idx) => (
-                      <div key={idx} className="flex gap-3"><span className="font-medium text-amber-800 w-20 text-sm shrink-0">{meal.type}</span><span className="text-sm text-gray-700">{meal.plan}</span></div>
-                    ))}
-                  </div>
+                  {day.meals.map((meal, idx) => (
+                    <div key={idx} className="flex gap-3 mb-1"><span className="font-medium text-amber-800 w-20 text-sm shrink-0">{meal.type}</span><span className="text-sm text-gray-700">{meal.plan}</span></div>
+                  ))}
                 </div>
               )}
 
               {(day.groceries || day.picnic) && (
                 <div className="bg-green-50 rounded-2xl shadow-sm p-6 border border-green-200">
                   <h3 className="text-lg font-semibold text-green-900 mb-3">🛒 Groceries & Picnic</h3>
-                  {day.groceries && (
-                    <div className="space-y-2 mb-3">
-                      <p className="text-sm text-gray-700"><strong className="text-green-800">Store:</strong> {day.groceries.store}</p>
-                      <p className="text-sm text-gray-700"><strong className="text-green-800">Wine/Beer:</strong> {day.groceries.wine}</p>
-                      {day.groceries.note && <p className="text-sm text-green-700 italic">{day.groceries.note}</p>}
-                    </div>
-                  )}
-                  {day.picnic && (
-                    <div className="mt-3 pt-3 border-t border-green-200">
-                      <p className="text-sm text-gray-700"><strong className="text-green-800">🧺 Spot:</strong> {day.picnic.spot}</p>
-                      {day.picnic.tip && <p className="text-sm text-green-700 italic mt-1">💡 {day.picnic.tip}</p>}
-                    </div>
-                  )}
+                  {day.groceries && (<div className="space-y-1 mb-3"><p className="text-sm"><strong className="text-green-800">Store:</strong> {day.groceries.store}</p><p className="text-sm"><strong className="text-green-800">Drinks:</strong> {day.groceries.wine}</p>{day.groceries.note && <p className="text-sm text-green-700 italic">{day.groceries.note}</p>}</div>)}
+                  {day.picnic && (<div className="mt-3 pt-3 border-t border-green-200"><p className="text-sm"><strong className="text-green-800">🧺</strong> {day.picnic.spot}</p>{day.picnic.tip && <p className="text-sm text-green-700 italic mt-1">💡 {day.picnic.tip}</p>}</div>)}
                 </div>
               )}
 
               {day.notes && day.notes.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📝 Notes</h3>
-                  <div className="space-y-2">
-                    {day.notes.map((note, idx) => (
-                      <div key={idx} className={`p-3 rounded-lg text-sm ${note.type === 'reservation' ? 'bg-red-50 text-red-800' : note.type === 'verify' ? 'bg-blue-50 text-blue-800' : note.type === 'optional' ? 'bg-gray-50 text-gray-700' : 'bg-emerald-50 text-emerald-800'}`}>
-                        {note.type === 'reservation' && '📋 '}{note.type === 'verify' && '🔍 '}{note.type === 'optional' && '🔲 '}{note.type === 'tip' && '💡 '}{note.text}
-                      </div>
-                    ))}
-                  </div>
+                  {day.notes.map((note, idx) => (
+                    <div key={idx} className={`p-3 rounded-lg text-sm mb-2 ${note.type === 'reservation' ? 'bg-red-50 text-red-800' : note.type === 'verify' ? 'bg-blue-50 text-blue-800' : note.type === 'optional' ? 'bg-gray-50 text-gray-700' : 'bg-emerald-50 text-emerald-800'}`}>
+                      {note.type === 'reservation' && '📋 '}{note.type === 'verify' && '🔍 '}{note.type === 'optional' && '🔲 '}{note.type === 'tip' && '💡 '}{note.text}
+                    </div>
+                  ))}
                 </div>
               )}
 
               <div className="flex justify-between">
-                <button onClick={() => { const i = itinerary.findIndex(d => d.date === day.date); if (i > 0) setActiveTab(itinerary[i-1].date); else setActiveTab('overview'); }} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">← Previous</button>
+                <button onClick={() => { const i = itinerary.findIndex(d => d.date === day.date); if (i > 0) setActiveTab(itinerary[i-1].date); else setActiveTab('overview'); }} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">← Prev</button>
                 <button onClick={() => setActiveTab('overview')} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Overview</button>
                 <button onClick={() => { const i = itinerary.findIndex(d => d.date === day.date); if (i < itinerary.length-1) setActiveTab(itinerary[i+1].date); }} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Next →</button>
               </div>
