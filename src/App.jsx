@@ -1,4 +1,4 @@
-const { useState } = React;
+import React, { useState } from 'react';
 
 // ─── STYLES ────────────────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ const styles = {
     borderLeft: '3px solid #1565c0',
   },
   textarea: {
-    width: '100%',
+    width: 'calc(100% - 34px)',
     marginTop: '8px',
     marginLeft: '34px',
     padding: '10px 12px',
@@ -184,13 +184,13 @@ const preCloseCategories = [
   {
     id: 'plumbing',
     title: 'Plumbing & Water',
-    icon: '\u{1F6BF}',
+    icon: '\uD83D\uDEBF',
     items: [
       { id: 'water-heater', label: 'Inspect & test water heater', description: 'Run hot water at a faucet and confirm the heater fires up. Note the model/serial number and age on the label.' },
       { id: 'kitchen-faucet', label: 'Inspect kitchen faucet & underside', description: 'Check for leaks, corrosion, or damage under the sink. Run the faucet and check water pressure.' },
-      { id: 'water-shutoff', label: '\u{1F4F8} Photo: Main water shut-off valve', description: 'Look along the perimeter wall facing the street \u2014 check the basement, garage, crawl space, or near the water heater. It\u2019s usually the LARGEST valve on the main incoming pipe. It will either be a LEVER (ball valve \u2014 parallel to pipe = ON, perpendicular = OFF) or a ROUND WHEEL (gate valve \u2014 turn clockwise to close).', isHelper: true },
-      { id: 'gas-shutoff', label: '\u{1F4F8} Photo: Gas shut-off valve (if applicable)', description: 'Usually located OUTSIDE near the gas meter, or in the basement/utility room near the furnace or water heater. It\u2019s on a rigid metal pipe and has a lever or flat rectangular tab. Parallel to pipe = ON, perpendicular = OFF. May require a wrench. Do NOT turn it off unless needed \u2014 the gas company must turn it back on.', isHelper: true },
-      { id: 'hose-bib-shutoff', label: '\u{1F4F8} Photo: Exterior hose bib shut-offs', description: 'These are INSIDE the house. Find your outdoor faucet (hose bib) on the exterior wall, then go inside and trace the pipe backward through the wall into the basement, crawl space, or utility room. You\u2019ll find a small valve on that pipe. Used to winterize outdoor faucets and prevent frozen pipes. After shutting off inside, open the outdoor faucet to drain remaining water.', isHelper: true },
+      { id: 'water-shutoff', label: '\uD83D\uDCF8 Photo: Main water shut-off valve', description: 'Look along the perimeter wall facing the street \u2014 check the basement, garage, crawl space, or near the water heater. It\u2019s usually the LARGEST valve on the main incoming pipe. It will either be a LEVER (ball valve \u2014 parallel to pipe = ON, perpendicular = OFF) or a ROUND WHEEL (gate valve \u2014 turn clockwise to close).', isHelper: true },
+      { id: 'gas-shutoff', label: '\uD83D\uDCF8 Photo: Gas shut-off valve (if applicable)', description: 'Usually located OUTSIDE near the gas meter, or in the basement/utility room near the furnace or water heater. It\u2019s on a rigid metal pipe and has a lever or flat rectangular tab. Parallel to pipe = ON, perpendicular = OFF. May require a wrench. Do NOT turn it off unless needed \u2014 the gas company must turn it back on.', isHelper: true },
+      { id: 'hose-bib-shutoff', label: '\uD83D\uDCF8 Photo: Exterior hose bib shut-offs', description: 'These are INSIDE the house. Find your outdoor faucet (hose bib) on the exterior wall, then go inside and trace the pipe backward through the wall into the basement, crawl space, or utility room. You\u2019ll find a small valve on that pipe. Used to winterize outdoor faucets and prevent frozen pipes. After shutting off inside, open the outdoor faucet to drain remaining water.', isHelper: true },
     ],
   },
   {
@@ -200,7 +200,7 @@ const preCloseCategories = [
     items: [
       { id: 'outlet-locations', label: 'Map out outlet locations', description: 'Bring a phone charger to test each outlet. Note any dead outlets.' },
       { id: 'ceiling-lights', label: 'Check ceiling lights', description: 'Test every switch and confirm all ceiling fixtures are working.' },
-      { id: 'electrical-panel', label: '\u{1F4F8} Close-up photos of electrical panel', description: 'Photograph the panel door label, individual breaker labels, and the main breaker amp rating.' },
+      { id: 'electrical-panel', label: '\uD83D\uDCF8 Close-up photos of electrical panel', description: 'Photograph the panel door label, individual breaker labels, and the main breaker amp rating.' },
       { id: 'outdoor-outlets', label: 'Locate & test outdoor electrical outlets', description: 'Check all exterior outlets. They should have GFCI protection (test/reset buttons). Note locations for future landscaping/holiday lights.' },
       { id: 'coax-cable', label: 'Map coax cable placement', description: 'Locate all coaxial cable outlets for TV/internet. Note which rooms have them for internet router placement planning.' },
       { id: 'lighting-fixtures', label: 'Lighting fixture descriptions & notes', description: 'Document fixture types, sizes, and styles in each room. Use the notes field below.', hasNotes: true },
@@ -209,16 +209,16 @@ const preCloseCategories = [
   {
     id: 'kitchen',
     title: 'Kitchen',
-    icon: '\u{1F373}',
+    icon: '\uD83C\uDF73',
     items: [
-      { id: 'kitchen-cabinets', label: '\u{1F4F8} Measure & photograph kitchen cabinets', description: 'Measure height, width, and depth of all cabinet runs. Photo the interiors too for shelf configuration.' },
-      { id: 'fridge-opening', label: '\u{1F4CF} Measure fridge opening', description: 'Measure WIDTH, HEIGHT, and DEPTH of the fridge alcove/space. Also measure the door clearance and any cabinet overhang.' },
+      { id: 'kitchen-cabinets', label: '\uD83D\uDCF8 Measure & photograph kitchen cabinets', description: 'Measure height, width, and depth of all cabinet runs. Photo the interiors too for shelf configuration.' },
+      { id: 'fridge-opening', label: '\uD83D\uDCCF Measure fridge opening', description: 'Measure WIDTH, HEIGHT, and DEPTH of the fridge alcove/space. Also measure the door clearance and any cabinet overhang.' },
     ],
   },
   {
     id: 'bathroom',
     title: 'Bathrooms',
-    icon: '\u{1F6C1}',
+    icon: '\uD83D\uDEC1',
     items: [
       { id: 'towel-tp-locations', label: 'Map towel holder & toilet paper holder locations', description: 'Note stud locations for mounting. Measure heights from floor.' },
       { id: 'bathroom-layout', label: 'Check bathroom layout & simulate open spaces', description: 'Visualize towel bar/hook placement, door swing clearance, and available wall space in each bathroom.' },
@@ -227,15 +227,15 @@ const preCloseCategories = [
   {
     id: 'hvac',
     title: 'HVAC & Systems',
-    icon: '\u{1F321}\uFE0F',
+    icon: '\uD83C\uDF21\uFE0F',
     items: [
-      { id: 'furnace-photos', label: '\u{1F4F8} Photos of Furnace/HVAC model numbers', description: 'Photograph the manufacturer label on the furnace/air handler and outdoor condenser unit. Capture model number, serial number, and manufacture date.' },
+      { id: 'furnace-photos', label: '\uD83D\uDCF8 Photos of Furnace/HVAC model numbers', description: 'Photograph the manufacturer label on the furnace/air handler and outdoor condenser unit. Capture model number, serial number, and manufacture date.' },
     ],
   },
   {
     id: 'garage',
     title: 'Garage & Exterior',
-    icon: '\u{1F697}',
+    icon: '\uD83D\uDE97',
     items: [
       { id: 'garage-door', label: 'Check garage door specs', description: 'Note the brand, model, size, and opener type. Test the auto-reverse safety feature.' },
     ],
@@ -304,8 +304,8 @@ function AccordionSection({ icon, title, items, checkedItems, onToggle, notes, o
         <span style={{ ...styles.badge, ...(allDone ? styles.badgeDone : {}) }}>
           {completedCount}/{items.length}
         </span>
-        <span style={{ fontSize: '0.8rem', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-          \u25BC
+        <span style={{ fontSize: '0.8rem', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>
+          {'\u25BC'}
         </span>
       </div>
       {open && (
@@ -321,7 +321,7 @@ function AccordionSection({ icon, title, items, checkedItems, onToggle, notes, o
                 <textarea
                   style={styles.textarea}
                   placeholder="e.g., Living room: flush-mount 14in round, brushed nickel. Master bedroom: ceiling fan with light kit, 52in..."
-                  value={notes[item.id] || ''}
+                  value={(notes && notes[item.id]) || ''}
                   onChange={(e) => onNotesChange(item.id, e.target.value)}
                 />
               )}
@@ -335,7 +335,7 @@ function AccordionSection({ icon, title, items, checkedItems, onToggle, notes, o
 
 // ─── MAIN APP ──────────────────────────────────────────────────────────────────
 
-function HomeWalkthroughChecklist() {
+export default function HomeWalkthroughChecklist() {
   const [checkedItems, setCheckedItems] = useState([]);
   const [notes, setNotes] = useState({});
 
@@ -360,8 +360,8 @@ function HomeWalkthroughChecklist() {
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <div style={styles.headerTitle}>{'\u{1F3E0}'} Final Walkthrough</div>
-        <div style={styles.headerSubtitle}>Pre-Close Checklist \u2014 Day Before Closing</div>
+        <div style={styles.headerTitle}>{'\uD83C\uDFE0'} Final Walkthrough</div>
+        <div style={styles.headerSubtitle}>Pre-Close Checklist {'\u2014'} Day Before Closing</div>
         <div style={styles.chipRow}>
           <span style={styles.chip}>Pre-Close: {completedPreClose}/{totalPreClose}</span>
           <span style={styles.chip}>Sal: {completedSal}/{salQuestions.length}</span>
@@ -385,9 +385,9 @@ function HomeWalkthroughChecklist() {
       ))}
 
       {/* Sal Questions */}
-      <div style={styles.sectionTitle}>{'\u{1F528}'} Questions for Sal (Contractor)</div>
+      <div style={styles.sectionTitle}>{'\uD83D\uDD28'} Questions for Sal (Contractor)</div>
       <AccordionSection
-        icon={'\u{1F477}'}
+        icon={'\uD83D\uDC77'}
         title="Bathroom Reno \u2014 Sal Discussion"
         items={salQuestions}
         checkedItems={checkedItems}
@@ -397,9 +397,9 @@ function HomeWalkthroughChecklist() {
       />
 
       {/* Post-Close */}
-      <div style={styles.sectionTitle}>{'\u{1F4CB}'} After Closing</div>
+      <div style={styles.sectionTitle}>{'\uD83D\uDCCB'} After Closing</div>
       <AccordionSection
-        icon={'\u{1F511}'}
+        icon={'\uD83D\uDD11'}
         title="Post-Close Tasks"
         items={postCloseItems}
         checkedItems={checkedItems}
@@ -409,16 +409,16 @@ function HomeWalkthroughChecklist() {
       />
 
       {/* Quick Reference */}
-      <div style={styles.sectionTitle}>{'\u{1F4A1}'} Quick Reference: Shut-Off Valves</div>
+      <div style={styles.sectionTitle}>{'\uD83D\uDCA1'} Quick Reference: Shut-Off Valves</div>
 
       <div style={styles.alertInfo}>
-        <div style={styles.alertTitle}>{'\u{1F4A7}'} Main Water Shut-Off</div>
+        <div style={styles.alertTitle}>{'\uD83D\uDCA7'} Main Water Shut-Off</div>
         <div style={styles.alertBody}>
-          <strong>Where to look:</strong> Along the perimeter wall facing the street \u2014 basement, garage, crawl space, or near the water heater.<br />
+          <strong>Where to look:</strong> Along the perimeter wall facing the street {'\u2014'} basement, garage, crawl space, or near the water heater.<br />
           <strong>What it looks like:</strong> The <em>largest</em> valve on the main incoming water pipe.<br />
           <strong>Two types:</strong><br />
-          \u2022 <strong>Lever (ball valve):</strong> Lever parallel to pipe = ON, perpendicular = OFF<br />
-          \u2022 <strong>Round wheel (gate valve):</strong> Turn clockwise to close
+          {'\u2022'} <strong>Lever (ball valve):</strong> Lever parallel to pipe = ON, perpendicular = OFF<br />
+          {'\u2022'} <strong>Round wheel (gate valve):</strong> Turn clockwise to close
         </div>
       </div>
 
@@ -428,26 +428,24 @@ function HomeWalkthroughChecklist() {
           <strong>Where to look:</strong> Outside near the gas meter, OR in the basement/utility room near the furnace or water heater.<br />
           <strong>What it looks like:</strong> A lever or flat rectangular tab on a rigid metal pipe.<br />
           <strong>How it works:</strong> Lever parallel to pipe = ON, perpendicular = OFF. May need a wrench.<br />
-          <strong>Important:</strong> If you smell gas, leave immediately. Never turn gas back on yourself \u2014 call the gas company.
+          <strong>Important:</strong> If you smell gas, leave immediately. Never turn gas back on yourself {'\u2014'} call the gas company.
         </div>
       </div>
 
       <div style={styles.alertSuccess}>
-        <div style={styles.alertTitle}>{'\u{1F6B0}'} Exterior Hose Bib Shut-Offs</div>
+        <div style={styles.alertTitle}>{'\uD83D\uDEB0'} Exterior Hose Bib Shut-Offs</div>
         <div style={styles.alertBody}>
           <strong>Where to look:</strong> INSIDE the house. Find the outdoor faucet on the exterior wall, then go inside and trace the pipe backward through the wall into the basement/crawl space/utility room.<br />
           <strong>What it looks like:</strong> A small ball or gate valve on the pipe leading to the outdoor faucet.<br />
-          <strong>Purpose:</strong> Winterization \u2014 shut off water to outdoor faucets to prevent frozen/burst pipes.<br />
+          <strong>Purpose:</strong> Winterization {'\u2014'} shut off water to outdoor faucets to prevent frozen/burst pipes.<br />
           <strong>Pro tip:</strong> After closing this valve inside, go outside and open the hose bib to drain remaining water.
         </div>
       </div>
 
       {/* Footer */}
       <div style={styles.footer}>
-        Good luck with closing! {'\u{1F389}\u{1F511}'}
+        Good luck with closing! {'\uD83C\uDF89\uD83D\uDD11'}
       </div>
     </div>
   );
 }
-
-render(<HomeWalkthroughChecklist />);
