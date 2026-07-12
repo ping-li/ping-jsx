@@ -249,6 +249,10 @@ const salQuestions = [
   { id: 'sal-pocket-door', label: 'Pocket door \u2014 process & deadlines', description: 'What\u2019s the process and timeline for adding the pocket door? Any framing implications?' },
 ];
 
+const angelaQuestions = [
+  { id: 'angela-lockbox', label: 'What happens with the lockbox on closing day?', description: 'Will someone come pick it up, or do we need to coordinate removal? Who is responsible \u2014 the listing agent or our side?' },
+];
+
 const postCloseItems = [
   { id: 'post-dishwasher', label: 'Run a full cycle of dishwasher', description: 'Check for leaks during and after the cycle.' },
   { id: 'post-water-heater', label: 'Buy out water heater', description: 'Complete the rental buyout or purchase.' },
@@ -354,6 +358,7 @@ export default function HomeWalkthroughChecklist() {
     (acc, cat) => acc + cat.items.filter((item) => checkedItems.includes(item.id)).length, 0
   );
   const completedSal = salQuestions.filter((item) => checkedItems.includes(item.id)).length;
+  const completedAngela = angelaQuestions.filter((item) => checkedItems.includes(item.id)).length;
   const completedPost = postCloseItems.filter((item) => checkedItems.includes(item.id)).length;
 
   return (
@@ -361,10 +366,11 @@ export default function HomeWalkthroughChecklist() {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerTitle}>{'\uD83C\uDFE0'} Final Walkthrough</div>
-        <div style={styles.headerSubtitle}>Pre-Close Checklist {'\u2014'} Day Before Closing</div>
+        <div style={styles.headerSubtitle}>{"Pre-Close Checklist \u2014 Day Before Closing"}</div>
         <div style={styles.chipRow}>
           <span style={styles.chip}>Pre-Close: {completedPreClose}/{totalPreClose}</span>
           <span style={styles.chip}>Sal: {completedSal}/{salQuestions.length}</span>
+          <span style={styles.chip}>Angela: {completedAngela}/{angelaQuestions.length}</span>
           <span style={styles.chip}>Post-Close: {completedPost}/{postCloseItems.length}</span>
         </div>
       </div>
@@ -388,8 +394,20 @@ export default function HomeWalkthroughChecklist() {
       <div style={styles.sectionTitle}>{'\uD83D\uDD28'} Questions for Sal (Contractor)</div>
       <AccordionSection
         icon={'\uD83D\uDC77'}
-        title="Bathroom Reno \u2014 Sal Discussion"
+        title={"Bathroom Reno \u2014 Sal Discussion"}
         items={salQuestions}
+        checkedItems={checkedItems}
+        onToggle={handleToggle}
+        notes={notes}
+        onNotesChange={handleNotesChange}
+      />
+
+      {/* Angela Questions */}
+      <div style={styles.sectionTitle}>{'\uD83C\uDFE1'} Questions for Angela (Realtor)</div>
+      <AccordionSection
+        icon={'\uD83D\uDCCB'}
+        title={"Closing Logistics \u2014 Angela"}
+        items={angelaQuestions}
         checkedItems={checkedItems}
         onToggle={handleToggle}
         notes={notes}
@@ -444,7 +462,7 @@ export default function HomeWalkthroughChecklist() {
 
       {/* Footer */}
       <div style={styles.footer}>
-        Good luck with closing! {'\uD83C\uDF89\uD83D\uDD11'}
+        {"Good luck with closing! \uD83C\uDF89\uD83D\uDD11"}
       </div>
     </div>
   );
