@@ -1,99 +1,109 @@
 import React from "react";
 
-const SCALE = 4;
 const ROOM_W = 170;
 const ROOM_H = 143;
 
 export default function RoomLayout() {
-  const s = (v) => v * SCALE;
-
   // --- FURNITURE (inches) ---
-  const tv = { w: 75, h: 3 };
-  const console_ = { w: 65, h: 18 };
-  const center = { w: 18, h: 6 };
-  const frontSpeaker = { w: 8, h: 10 };
-  const lightBar = { w: 2, h: 15 };
-  const sub = { w: 14, h: 14 };
-  const sofa = { w: 135, h: 34 };
-  const ottoman = { w: 34, h: 31 };
-  const vela = { w: 23, h: 30.5 };
-  const noguchi = { w: 50, h: 36 };
-  const endTable = { w: 18, h: 18 };
-  const surround = { w: 6, h: 6 };
+  const ITEMS = {
+    tv: { w: 75, h: 3 },
+    console: { w: 65, h: 16 },
+    center: { w: 16, h: 5 },
+    fl: { w: 8, h: 10 },
+    fr: { w: 8, h: 10 },
+    lbL: { w: 2, h: 14 },
+    lbR: { w: 2, h: 14 },
+    sub: { w: 14, h: 14 },
+    sofa: { w: 135, h: 34 },
+    ottoman: { w: 34, h: 31 },
+    vela: { w: 23, h: 30 },
+    noguchi: { w: 50, h: 36 },
+    endTable: { w: 18, h: 18 },
+    sl: { w: 5, h: 5 },
+    sr: { w: 5, h: 5 },
+  };
 
-  // --- POSITIONS ---
+  // --- POSITIONS (inches from top-left) ---
 
   // Sofa: 5" from back wall, 8" from left wall
-  const sofaPos = { x: 8, y: ROOM_H - sofa.h - 5 };
+  const sofa = { x: 8, y: ROOM_H - ITEMS.sofa.h - 5 };
 
-  // Ottoman: LEFT arm of C, attached to sofa's left end, extends forward
-  const ottomanPos = { x: sofaPos.x, y: sofaPos.y - ottoman.h - 1 };
+  // Ottoman: LEFT arm of C, extends forward from sofa's left end
+  const ottoman = { x: sofa.x, y: sofa.y - ITEMS.ottoman.h - 2 };
 
   // End table: right side of sofa
-  const etPos = {
-    x: sofaPos.x + sofa.w + 3,
-    y: sofaPos.y + (sofa.h - endTable.h) / 2,
+  const endTable = {
+    x: sofa.x + ITEMS.sofa.w + 3,
+    y: sofa.y + (ITEMS.sofa.h - ITEMS.endTable.h) / 2,
   };
 
-  // Vela: RIGHT arm of C, forward of end table, angled toward TV
-  const velaPos = {
-    x: etPos.x - 2,
-    y: sofaPos.y - vela.h - 10,
+  // Vela: RIGHT arm of C, forward of end table, pulled in from room edge
+  const vela = {
+    x: endTable.x - 3,
+    y: sofa.y - ITEMS.vela.h - 8,
   };
 
-  // Visual centre: sofa midpoint + 4" right (slight nod to Vela without over-committing)
-  const visualCenterX = sofaPos.x + sofa.w / 2 + 4;
+  // Visual center: sofa midpoint + 12"
+  const visualCenterX = sofa.x + ITEMS.sofa.w / 2 + 12;
 
-  // Noguchi: centered on visual centre
-  const noguchiPos = {
-    x: visualCenterX - noguchi.w / 2,
-    y: sofaPos.y - noguchi.h - 14,
+  // Noguchi: centered on visual center, 16" forward of sofa
+  const noguchi = {
+    x: visualCenterX - ITEMS.noguchi.w / 2,
+    y: sofa.y - ITEMS.noguchi.h - 16,
   };
 
-  // TV + Console: centered on same visual centre
-  const tvPos = { x: visualCenterX - tv.w / 2, y: 2 };
-  const consolePos = { x: visualCenterX - console_.w / 2, y: tvPos.y + tv.h + 2 };
-  const centerPos = { x: visualCenterX - center.w / 2, y: consolePos.y + console_.h - center.h - 1 };
+  // TV + Console: centered on visual center
+  const tv = { x: visualCenterX - ITEMS.tv.w / 2, y: 2 };
+  const console_ = { x: visualCenterX - ITEMS.console.w / 2, y: tv.y + ITEMS.tv.h + 2 };
+  const center = { x: visualCenterX - ITEMS.center.w / 2, y: console_.y + ITEMS.console.h - ITEMS.center.h - 1 };
 
   // Front speakers
-  const flPos = { x: tvPos.x - frontSpeaker.w - 10, y: consolePos.y + 4 };
-  const frPos = { x: tvPos.x + tv.w + 10, y: consolePos.y + 4 };
+  const fl = { x: tv.x - ITEMS.fl.w - 8, y: console_.y + 3 };
+  const fr = { x: tv.x + ITEMS.tv.w + 8, y: console_.y + 3 };
 
   // Light bars
-  const lbLPos = { x: tvPos.x - 4, y: 5 };
-  const lbRPos = { x: tvPos.x + tv.w + 2, y: 5 };
+  const lbL = { x: tv.x - 4, y: 4 };
+  const lbR = { x: tv.x + ITEMS.tv.w + 2, y: 4 };
 
   // Sub: front-left corner
-  const subPos = { x: 3, y: 3 };
+  const sub = { x: 3, y: 3 };
 
-  // Surround speakers: both at same depth, slightly behind listening position
-  const surroundY = sofaPos.y + sofa.h * 0.6;
-  const slPos = { x: 2, y: surroundY };
-  // SR: tucked behind end table
-  const srPos = { x: etPos.x + (endTable.w - surround.w) / 2, y: etPos.y + endTable.h + 2 };
-
-  // Rug: option 2 — slightly larger, front legs of sofa on it
-  // Extends from just inside ottoman inner edge to just past Vela zone
-  // Bottom edge reaches sofa front, top edge above Noguchi
-  const rugPos = {
-    x: ottomanPos.x + ottoman.w - 4,
-    y: noguchiPos.y - 10,
+  // Surrounds: aligned at same Y
+  const surroundY = sofa.y + ITEMS.sofa.h * 0.55;
+  const sl = { x: 2, y: surroundY };
+  // SR: BEHIND end table (below it — further from TV)
+  const sr = {
+    x: endTable.x + (ITEMS.endTable.w - ITEMS.sr.w) / 2,
+    y: endTable.y + ITEMS.endTable.h + 3,
   };
-  const rugW = velaPos.x - (ottomanPos.x + ottoman.w) + 12;
-  const rugH = sofaPos.y - noguchiPos.y + 18; // extends slightly under sofa front edge
 
-  // Calculations
-  const viewingDist = Math.round(sofaPos.y - (consolePos.y + console_.h));
+  // Rug: 8'x5' (96x60), centered on noguchi, bottom edge at sofa front
+  const rug = {
+    w: 96,
+    h: 60,
+    x: noguchi.x + ITEMS.noguchi.w / 2 - 48,
+    y: sofa.y - 60, // bottom edge at sofa front
+  };
 
-  const Piece = ({ pos, size, color, label, textSize = "text-[9px]", rotate = 0 }) => (
+  // Viewing distance
+  const viewingDist = Math.round(sofa.y - (console_.y + ITEMS.console.h));
+
+  // Percentage helpers
+  const pX = (v) => `${(v / ROOM_W) * 100}%`;
+  const pY = (v) => `${(v / ROOM_H) * 100}%`;
+  const pW = (v) => `${(v / ROOM_W) * 100}%`;
+  const pH = (v) => `${(v / ROOM_H) * 100}%`;
+
+  const Piece = ({ pos, size, color, label, small = false, rotate = 0 }) => (
     <div
-      className={`absolute flex items-center justify-center rounded border border-gray-600/70 ${textSize} font-bold text-white text-center leading-tight`}
+      className="absolute flex items-center justify-center rounded-sm border border-gray-600/60 text-white text-center leading-tight font-bold px-0.5"
       style={{
-        left: s(pos.x),
-        top: s(pos.y),
-        width: s(size.w),
-        height: s(size.h),
+        left: pX(pos.x),
+        top: pY(pos.y),
+        width: pW(size.w),
+        height: pH(size.h),
         backgroundColor: color,
+        fontSize: small ? "clamp(5px, 1.1vw, 8px)" : "clamp(7px, 1.4vw, 11px)",
         transform: rotate ? `rotate(${rotate}deg)` : undefined,
         transformOrigin: "center center",
       }}
@@ -103,151 +113,149 @@ export default function RoomLayout() {
   );
 
   return (
-    <div className="p-6 font-sans bg-gray-950 text-gray-200 min-h-screen">
-      <h2 className="text-xl font-bold mb-1">Room Layout — 170″ × 143″</h2>
-      <p className="text-xs text-gray-400 mb-1">
-        Scale: 1″ = 4px | Grid = 12″ | Cozey Luna + Ottoman (L) + Vela (R) = "C"
+    <div className="p-3 md:p-6 font-sans bg-gray-950 text-gray-200 min-h-screen">
+      <h2 className="text-base md:text-xl font-bold mb-1">Room Layout — 170″ × 143″</h2>
+      <p className="text-[9px] md:text-xs text-gray-400 mb-0.5">
+        Grid = 12″ | Ottoman (L) + Vela (R) = "C" | TV/Noguchi at sofa midpoint +12″
       </p>
-      <p className="text-xs text-gray-500 mb-4">
-        TV/Noguchi at sofa midpoint +4″ • SL/SR aligned • SR behind end table • Rug under sofa front edge
+      <p className="text-[9px] md:text-xs text-gray-500 mb-3">
+        SR behind end table • SL/SR depth-aligned • Rug 8′×5′ in C interior
       </p>
 
-      <div
-        className="relative overflow-visible"
-        style={{ width: s(ROOM_W) + 80, height: s(ROOM_H) + 60 }}
-      >
+      {/* Responsive room container */}
+      <div className="w-full max-w-[700px] mx-auto">
         <div
-          className="absolute"
-          style={{ left: 40, top: 30, width: s(ROOM_W), height: s(ROOM_H) }}
+          className="relative w-full bg-gray-950 border-l-2 border-t-2 border-b-2 border-gray-300 rounded-l"
+          style={{ paddingBottom: `${(ROOM_H / ROOM_W) * 100}%` }}
         >
-          {/* Walls */}
-          <div className="absolute inset-0 border-l-2 border-t-2 border-b-2 border-gray-300" />
+          {/* Right wall dashed */}
           <div className="absolute top-0 right-0 h-full border-r-2 border-dashed border-gray-500" />
 
           {/* Grid */}
           {Array.from({ length: Math.floor(ROOM_W / 12) }, (_, i) => (
             <div
               key={`v${i}`}
-              className="absolute top-0 h-full border-l border-dashed border-gray-800/20"
-              style={{ left: s((i + 1) * 12) }}
+              className="absolute top-0 h-full border-l border-dashed border-gray-800/15"
+              style={{ left: pX((i + 1) * 12) }}
             />
           ))}
           {Array.from({ length: Math.floor(ROOM_H / 12) }, (_, i) => (
             <div
               key={`h${i}`}
-              className="absolute left-0 w-full border-t border-dashed border-gray-800/20"
-              style={{ top: s((i + 1) * 12) }}
+              className="absolute left-0 w-full border-t border-dashed border-gray-800/15"
+              style={{ top: pY((i + 1) * 12) }}
             />
           ))}
 
-          {/* Rug — slightly under sofa front edge */}
+          {/* Rug */}
           <div
             className="absolute rounded"
             style={{
-              left: s(rugPos.x),
-              top: s(rugPos.y),
-              width: s(rugW),
-              height: s(rugH),
-              backgroundColor: "rgba(140, 100, 60, 0.13)",
-              border: "1.5px dashed rgba(140, 100, 60, 0.3)",
+              left: pX(rug.x),
+              top: pY(rug.y),
+              width: pW(rug.w),
+              height: pH(rug.h),
+              backgroundColor: "rgba(120, 85, 50, 0.12)",
+              border: "1.5px dashed rgba(120, 85, 50, 0.3)",
             }}
           >
-            <span className="absolute top-1 left-2 text-[8px] text-amber-700/50 font-medium">
-              Rug (~{Math.round(rugW / 12)}′×{Math.round(rugH / 12)}′)
+            <span className="absolute top-0.5 left-1 text-[6px] md:text-[8px] text-amber-700/40 font-medium">
+              Rug (8′×5′)
             </span>
           </div>
 
           {/* TV Zone */}
-          <Piece pos={tvPos} size={tv} color="#dc2626" label="85″ TV" textSize="text-[11px]" />
-          <Piece pos={consolePos} size={console_} color="#1d4ed8" label="Media Console" textSize="text-[10px]" />
-          <Piece pos={centerPos} size={center} color="#b45309" label="Center" textSize="text-[7px]" />
-          <Piece pos={flPos} size={frontSpeaker} color="#c2410c" label="FL" textSize="text-[8px]" />
-          <Piece pos={frPos} size={frontSpeaker} color="#c2410c" label="FR" textSize="text-[8px]" />
-          <Piece pos={lbLPos} size={lightBar} color="#059669" label="" />
-          <Piece pos={lbRPos} size={lightBar} color="#059669" label="" />
-          <Piece pos={subPos} size={sub} color="#1e3a5f" label="Sub" textSize="text-[8px]" />
+          <Piece pos={tv} size={ITEMS.tv} color="#dc2626" label="85″ TV" />
+          <Piece pos={console_} size={ITEMS.console} color="#1d4ed8" label="Media Console" />
+          <Piece pos={center} size={ITEMS.center} color="#b45309" label="Center" small />
+          <Piece pos={fl} size={ITEMS.fl} color="#c2410c" label="FL" small />
+          <Piece pos={fr} size={ITEMS.fr} color="#c2410c" label="FR" small />
+          <Piece pos={lbL} size={ITEMS.lbL} color="#059669" label="" small />
+          <Piece pos={lbR} size={ITEMS.lbR} color="#059669" label="" small />
+          <Piece pos={sub} size={ITEMS.sub} color="#1e3a5f" label="Sub" small />
 
           {/* Seating */}
-          <Piece pos={sofaPos} size={sofa} color="#6d28d9" label="Cozey Luna 4-Seater (343cm)" textSize="text-[10px]" />
-          <Piece pos={ottomanPos} size={ottoman} color="#8b5cf6" label="Ottoman" textSize="text-[9px]" />
-          <Piece pos={noguchiPos} size={noguchi} color="#831843" label="Noguchi" textSize="text-[9px]" />
-          <Piece pos={etPos} size={endTable} color="#15803d" label="End Tbl" textSize="text-[8px]" />
-          <Piece pos={velaPos} size={vela} color="#db2777" label="Vela" textSize="text-[10px]" rotate={-20} />
+          <Piece pos={sofa} size={ITEMS.sofa} color="#6d28d9" label="Cozey Luna 4-Seater (343cm)" />
+          <Piece pos={ottoman} size={ITEMS.ottoman} color="#8b5cf6" label="Ottoman" />
+          <Piece pos={noguchi} size={ITEMS.noguchi} color="#831843" label="Noguchi" />
+          <Piece pos={endTable} size={ITEMS.endTable} color="#15803d" label="End Tbl" small />
+          <Piece pos={vela} size={ITEMS.vela} color="#db2777" label="Vela" rotate={-20} />
 
           {/* Surrounds */}
-          <Piece pos={slPos} size={surround} color="#c2410c" label="SL" textSize="text-[7px]" />
-          <Piece pos={srPos} size={surround} color="#c2410c" label="SR" textSize="text-[7px]" />
+          <Piece pos={sl} size={ITEMS.sl} color="#c2410c" label="SL" small />
+          <Piece pos={sr} size={ITEMS.sr} color="#c2410c" label="SR" small />
 
-          {/* Annotations */}
+          {/* Viewing distance annotation */}
           <div
-            className="absolute border-l border-dashed border-amber-400/40"
+            className="absolute border-l border-dashed border-amber-400/35"
             style={{
-              left: s(visualCenterX),
-              top: s(consolePos.y + console_.h + 2),
-              height: s(viewingDist - 4),
+              left: pX(visualCenterX),
+              top: pY(console_.y + ITEMS.console.h + 1),
+              height: pH(viewingDist - 2),
             }}
           />
           <div
-            className="absolute text-[9px] text-amber-400 whitespace-nowrap"
+            className="absolute text-[7px] md:text-[9px] text-amber-400 whitespace-nowrap"
             style={{
-              left: s(visualCenterX) + 6,
-              top: s(consolePos.y + console_.h) + s(viewingDist) / 2,
+              left: pX(visualCenterX + 2),
+              top: pY(console_.y + ITEMS.console.h + viewingDist / 2),
             }}
           >
             ~{viewingDist}″ (~{Math.round((viewingDist + 18) / 12)}′ to eyes)
           </div>
 
+          {/* Back wall */}
           <div
-            className="absolute text-[8px] text-amber-400/60 whitespace-nowrap"
-            style={{ left: s(sofaPos.x + sofa.w / 2) - 20, top: s(ROOM_H) - 12 }}
+            className="absolute text-[6px] md:text-[8px] text-amber-400/50 whitespace-nowrap"
+            style={{ left: "30%", bottom: "0.5%" }}
           >
-            5″ to wall
+            5″ to back wall
           </div>
 
+          {/* Open side */}
           <div
-            className="absolute text-[9px] text-emerald-400/60 whitespace-nowrap"
-            style={{ right: -46, top: s(ROOM_H / 2) }}
+            className="absolute text-[7px] md:text-[9px] text-emerald-400/50 whitespace-nowrap"
+            style={{ right: "-11%", top: "46%" }}
           >
             55″ open →
           </div>
-        </div>
 
-        {/* External labels */}
-        <div className="absolute text-[11px] text-gray-400 whitespace-nowrap" style={{ left: 40 + s(ROOM_W) / 2 - 50, top: 10 }}>
-          ← TV WALL (170″) →
-        </div>
-        <div
-          className="absolute text-[11px] text-gray-400 whitespace-nowrap"
-          style={{ left: 8, top: 30 + s(ROOM_H) / 2 + 20, transform: "rotate(-90deg)", transformOrigin: "left center" }}
-        >
-          ← 143″ →
-        </div>
-        <div
-          className="absolute text-[10px] text-gray-500 whitespace-nowrap"
-          style={{ left: 40 + s(ROOM_W) + 18, top: 30 + s(ROOM_H) / 2 + 30, transform: "rotate(90deg)", transformOrigin: "left center" }}
-        >
-          ← Open to hallway / dining →
+          {/* TV wall label */}
+          <div
+            className="absolute text-[8px] md:text-[10px] text-gray-400 whitespace-nowrap left-1/2 -translate-x-1/2"
+            style={{ top: "-16px" }}
+          >
+            ← TV WALL (170″) →
+          </div>
+
+          {/* Left wall label */}
+          <div
+            className="absolute text-[8px] md:text-[10px] text-gray-400 whitespace-nowrap"
+            style={{ left: "-14%", top: "46%", transform: "rotate(-90deg)" }}
+          >
+            ← 143″ →
+          </div>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-x-5 gap-y-2 mt-6 text-[11px]">
+      <div className="grid grid-cols-3 md:flex md:flex-wrap gap-x-3 md:gap-x-4 gap-y-1 mt-4 text-[8px] md:text-[11px] max-w-[700px] mx-auto">
         {[
           { color: "#dc2626", label: "85″ TV" },
-          { color: "#1d4ed8", label: "Media Console" },
-          { color: "#059669", label: "Govee Light Bars" },
+          { color: "#1d4ed8", label: "Console" },
+          { color: "#059669", label: "Light Bars" },
           { color: "#c2410c", label: "5.1 Speakers" },
-          { color: "#b45309", label: "Center Channel" },
+          { color: "#b45309", label: "Center Ch." },
           { color: "#1e3a5f", label: "Subwoofer" },
-          { color: "#6d28d9", label: "Cozey Luna 4-Seater" },
+          { color: "#6d28d9", label: "Luna Sofa" },
           { color: "#8b5cf6", label: "Ottoman" },
-          { color: "#db2777", label: "Vela Chair" },
-          { color: "#831843", label: "Noguchi Table" },
+          { color: "#db2777", label: "Vela" },
+          { color: "#831843", label: "Noguchi" },
           { color: "#15803d", label: "End Table" },
-          { color: "rgba(140, 100, 60, 0.4)", label: "Rug" },
+          { color: "rgba(120,85,50,0.5)", label: "Rug" },
         ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
+          <div key={label} className="flex items-center gap-1">
+            <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
             <span>{label}</span>
           </div>
         ))}
