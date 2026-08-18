@@ -1,264 +1,531 @@
-import React from "react";
+import React, { useState } from "react";
 
-const ROOM_W = 170;
-const ROOM_H = 143;
+export default function HVACActionPlan() {
+  const [checked, setChecked] = useState({});
+  const toggle = (id) => setChecked((p) => ({ ...p, [id]: !p[id] }));
 
-export default function RoomLayout() {
-  // --- FURNITURE (inches) — updated with real specs ---
-  const ITEMS = {
-    tv: { w: 74.4, h: 2.3 },       // TCL QM6K 85" actual
-    console: { w: 86.6, h: 15.2 },  // Latitude Run 86.6" credenza
-    center: { w: 16, h: 5 },
-    fl: { w: 8, h: 10 },
-    fr: { w: 8, h: 10 },
-    lbL: { w: 2, h: 14 },
-    lbR: { w: 2, h: 14 },
-    sub: { w: 14, h: 14 },
-    sofa: { w: 135, h: 34 },
-    ottoman: { w: 34, h: 31 },
-    vela: { w: 23, h: 30 },
-    noguchi: { w: 50, h: 36 },
-    endTable: { w: 18, h: 18 },
-    sl: { w: 5, h: 5 },
-    sr: { w: 5, h: 5 },
-  };
-
-  // --- POSITIONS ---
-
-  // Sofa: 5" from back wall, 8" from left wall
-  const sofa = { x: 8, y: ROOM_H - ITEMS.sofa.h - 5 };
-
-  // Ottoman: LEFT arm of C
-  const ottoman = { x: sofa.x, y: sofa.y - ITEMS.ottoman.h - 2 };
-
-  // End table: right of sofa
-  const endTable = {
-    x: sofa.x + ITEMS.sofa.w + 3,
-    y: sofa.y + (ITEMS.sofa.h - ITEMS.endTable.h) / 2,
-  };
-
-  // Vela: RIGHT arm of C — forward of end table, INSIDE room boundary
-  // Pull it left enough to stay within room
-  const velaRawX = endTable.x - 3;
-  const velaX = Math.min(velaRawX, ROOM_W - ITEMS.vela.w - 5); // clamp to room
-  const vela = {
-    x: velaX,
-    y: sofa.y - ITEMS.vela.h - 6,
-  };
-
-  // Visual center: sofa midpoint + 12"
-  const visualCenterX = sofa.x + ITEMS.sofa.w / 2 + 12;
-
-  // Noguchi: centered on visual center, 18" forward of sofa
-  const noguchi = {
-    x: visualCenterX - ITEMS.noguchi.w / 2,
-    y: sofa.y - ITEMS.noguchi.h - 18,
-  };
-
-  // TV zone
-  const tv = { x: visualCenterX - ITEMS.tv.w / 2, y: 2 };
-  const console_ = { x: visualCenterX - ITEMS.console.w / 2, y: tv.y + ITEMS.tv.h + 3 };
-  const center = { x: visualCenterX - ITEMS.center.w / 2, y: console_.y + ITEMS.console.h - ITEMS.center.h - 2 };
-
-  // Front speakers: outside console edges
-  const fl = { x: console_.x - ITEMS.fl.w - 5, y: console_.y + 2 };
-  const fr = { x: console_.x + ITEMS.console.w + 5, y: console_.y + 2 };
-
-  // Light bars: just outside TV edges
-  const lbL = { x: tv.x - 3, y: 3 };
-  const lbR = { x: tv.x + ITEMS.tv.w + 1, y: 3 };
-
-  // Sub: front-left corner
-  const sub = { x: 3, y: 3 };
-
-  // Surrounds: aligned depth
-  const surroundY = sofa.y + ITEMS.sofa.h * 0.5;
-  const sl = { x: 2, y: surroundY };
-  // SR: BEHIND end table (below it = further from TV)
-  const sr = {
-    x: endTable.x + (ITEMS.endTable.w - ITEMS.sr.w) / 2,
-    y: endTable.y + ITEMS.endTable.h + 3,
-  };
-
-  // Rug: 8'x5' (96x60) — bottom edge at sofa front, centered on noguchi X
-  const rug = {
-    w: 96,
-    h: 60,
-    x: noguchi.x + ITEMS.noguchi.w / 2 - 48,
-    y: sofa.y - 60, // bottom edge flush with sofa front
-  };
-
-  // Viewing distance (console bottom to sofa top)
-  const viewingDist = Math.round(sofa.y - (console_.y + ITEMS.console.h));
-
-  // Percentage helpers
-  const pX = (v) => `${(v / ROOM_W) * 100}%`;
-  const pY = (v) => `${(v / ROOM_H) * 100}%`;
-  const pW = (v) => `${(v / ROOM_W) * 100}%`;
-  const pH = (v) => `${(v / ROOM_H) * 100}%`;
-
-  const Piece = ({ pos, size, color, label, small = false, rotate = 0 }) => (
-    <div
-      className="absolute flex items-center justify-center rounded-sm border border-gray-600/60 text-white text-center leading-tight font-bold px-0.5 overflow-hidden"
-      style={{
-        left: pX(pos.x),
-        top: pY(pos.y),
-        width: pW(size.w),
-        height: pH(size.h),
-        backgroundColor: color,
-        fontSize: small ? "clamp(5px, 1vw, 8px)" : "clamp(6px, 1.3vw, 10px)",
-        transform: rotate ? `rotate(${rotate}deg)` : undefined,
-        transformOrigin: "center center",
-      }}
-    >
-      {label}
-    </div>
+  const Check = ({ id, children }) => (
+    <label className="flex items-start gap-3 py-1.5 cursor-pointer group">
+      <input
+        type="checkbox"
+        checked={!!checked[id]}
+        onChange={() => toggle(id)}
+        className="mt-1 h-4 w-4 rounded border-slate-400 text-blue-600 focus:ring-blue-500 cursor-pointer"
+      />
+      <span
+        className={`text-slate-700 group-hover:text-slate-900 ${
+          checked[id] ? "line-through text-slate-400" : ""
+        }`}
+      >
+        {children}
+      </span>
+    </label>
   );
 
+  const Section = ({ title, tone = "slate", children }) => {
+    const tones = {
+      slate: "border-slate-300 bg-white",
+      blue: "border-blue-300 bg-blue-50",
+      amber: "border-amber-300 bg-amber-50",
+      green: "border-green-300 bg-green-50",
+      red: "border-red-300 bg-red-50",
+    };
+    return (
+      <section
+        className={`rounded-2xl border-2 ${tones[tone]} p-5 sm:p-6 shadow-sm`}
+      >
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
+          {title}
+        </h2>
+        {children}
+      </section>
+    );
+  };
+
   return (
-    <div className="p-3 md:p-6 font-sans bg-gray-950 text-gray-200 min-h-screen">
-      <h2 className="text-base md:text-xl font-bold mb-1">Room Layout — 170″ × 143″</h2>
-      <p className="text-[9px] md:text-xs text-gray-400 mb-0.5">
-        TCL QM6K 85″ (74.4″ wide) | Latitude Run 86.6″ Console | Sofa midpoint +12″
-      </p>
-      <p className="text-[9px] md:text-xs text-gray-500 mb-3">
-        Ottoman (L) + Vela (R) = C • SR behind end table • Rug 8′×5′ in C interior
-      </p>
+    <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <header className="bg-gradient-to-r from-blue-700 to-blue-900 text-white rounded-2xl p-6 sm:p-8 shadow-lg">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+            HVAC Action Plan
+          </h1>
+          <p className="text-blue-100 text-sm sm:text-base">
+            93 Willowbrook Rd, Markham ON · New owner since July 16, 2026
+          </p>
+          <p className="text-blue-200 text-xs mt-1">
+            Prepared August 17, 2026
+          </p>
+        </header>
 
-      <div className="w-full max-w-[700px] mx-auto">
-        <div
-          className="relative w-full bg-gray-950 border-l-2 border-t-2 border-b-2 border-gray-300 rounded-l"
-          style={{ paddingBottom: `${(ROOM_H / ROOM_W) * 100}%` }}
-        >
-          {/* Right wall dashed */}
-          <div className="absolute top-0 right-0 h-full border-r-2 border-dashed border-gray-500" />
+        {/* System Snapshot */}
+        <Section title="🏠 System Snapshot" tone="slate">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="bg-slate-50 rounded-lg p-3">
+              <p className="font-semibold text-slate-900">Outdoor Heat Pump</p>
+              <p className="text-slate-600">Gree GUD36W/A-D(U) · 3-ton</p>
+              <p className="text-slate-600">Mfg: 2023-07 · R-410A (9.3 lbs)</p>
+              <p className="text-slate-600">208/230V · RLA 16A</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3">
+              <p className="font-semibold text-slate-900">Indoor Coil</p>
+              <p className="text-slate-600">Gree GCAT36F/NaA</p>
+              <p className="text-slate-600">S/N: 9AK223N021982</p>
+              <p className="text-slate-600">Mfg: 2023-08 · R-410A (0.55 lbs)</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3">
+              <p className="font-semibold text-slate-900">Furnace</p>
+              <p className="text-slate-600">~2016 install (separate age)</p>
+              <p className="text-slate-600">Contains the blower motor</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3">
+              <p className="font-semibold text-slate-900">Other</p>
+              <p className="text-slate-600">
+                Emerson EAC (vintage · likely dead — light never on)
+              </p>
+              <p className="text-slate-600">
+                Ecobee Lite 3 (hardwired, no batteries)
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 bg-red-100 border-l-4 border-red-500 p-3 rounded">
+            <p className="text-sm font-semibold text-red-900">Current Issue</p>
+            <p className="text-sm text-red-800">
+              Buzzing → revving → silence on startup. Refrigerant valve
+              freezes. No response in fan-only mode. Furnace switch reset did
+              not help.
+            </p>
+          </div>
+          <div className="mt-3 bg-amber-100 border-l-4 border-amber-500 p-3 rounded">
+            <p className="text-sm font-semibold text-amber-900">
+              ⚠️ Leave system OFF at the thermostat until technician arrives
+            </p>
+            <p className="text-sm text-amber-800">
+              Prevents further compressor damage. Let any ice thaw fully — put
+              a towel under the indoor coil to catch meltwater.
+            </p>
+          </div>
+        </Section>
 
-          {/* Grid */}
-          {Array.from({ length: Math.floor(ROOM_W / 12) }, (_, i) => (
-            <div
-              key={`v${i}`}
-              className="absolute top-0 h-full border-l border-dashed border-gray-800/15"
-              style={{ left: pX((i + 1) * 12) }}
-            />
-          ))}
-          {Array.from({ length: Math.floor(ROOM_H / 12) }, (_, i) => (
-            <div
-              key={`h${i}`}
-              className="absolute left-0 w-full border-t border-dashed border-gray-800/15"
-              style={{ top: pY((i + 1) * 12) }}
-            />
-          ))}
+        {/* Step 1 - Pre-call Prep */}
+        <Section title="✅ Step 1 — Quick Prep (10 min)" tone="blue">
+          <p className="text-sm text-slate-700 mb-3">
+            Skip the DIY troubleshooting — symptoms are consistent and
+            reproducible, so it's a real fault. Just get the essentials ready
+            before calling.
+          </p>
+          <div className="space-y-1">
+            <Check id="s1-1">
+              Turn system OFF at the Ecobee thermostat
+            </Check>
+            <Check id="s1-2">
+              Measure filter cavity (H × W × Depth) and note current filter
+              size — cavity is likely 5–6" deep since it was built for EAC
+              cells
+            </Check>
+            <Check id="s1-3">
+              Locate + label main panel breakers (AC/heat pump 30–40A
+              double-pole; furnace 15A single-pole)
+            </Check>
+            <Check id="s1-4">
+              Photograph Ecobee wiring (gently pull the faceplate to expose
+              terminal block)
+            </Check>
+            <Check id="s1-5">
+              Ecobee app → Settings → Installation Settings → Equipment.
+              Screenshot config + 7-day runtime history
+            </Check>
+          </div>
+        </Section>
 
-          {/* Rug — in C interior only */}
-          <div
-            className="absolute rounded"
-            style={{
-              left: pX(rug.x),
-              top: pY(rug.y),
-              width: pW(rug.w),
-              height: pH(rug.h),
-              backgroundColor: "rgba(120, 85, 50, 0.1)",
-              border: "1.5px dashed rgba(120, 85, 50, 0.25)",
-            }}
-          >
-            <span className="absolute top-0.5 left-1 text-[6px] md:text-[8px] text-amber-700/40 font-medium">
-              Rug (8′×5′)
-            </span>
+        {/* Step 2 - Phone Script */}
+        <Section title="📞 Step 2 — Call For Saving" tone="green">
+          <div className="grid sm:grid-cols-2 gap-3 mb-4">
+            <div className="bg-white rounded-lg p-3 border border-green-300">
+              <p className="text-xs uppercase font-bold text-green-700">
+                Primary (24/7 Dispatch)
+              </p>
+              <p className="font-mono text-lg text-slate-900">416-335-0881</p>
+              <p className="text-xs text-slate-500">Number on the sticker</p>
+            </div>
+            <div className="bg-white rounded-lg p-3 border border-green-300">
+              <p className="text-xs uppercase font-bold text-green-700">
+                Markham Branch (Backup)
+              </p>
+              <p className="font-mono text-lg text-slate-900">905-499-3714</p>
+              <p className="text-xs text-slate-500">
+                550 Alden Rd · use if dispatch is slow
+              </p>
+            </div>
           </div>
 
-          {/* TV Zone */}
-          <Piece pos={tv} size={ITEMS.tv} color="#dc2626" label="TCL QM6K 85″" />
-          <Piece pos={console_} size={ITEMS.console} color="#1d4ed8" label="Console (86.6″)" />
-          <Piece pos={center} size={ITEMS.center} color="#b45309" label="Center" small />
-          <Piece pos={fl} size={ITEMS.fl} color="#c2410c" label="FL" small />
-          <Piece pos={fr} size={ITEMS.fr} color="#c2410c" label="FR" small />
-          <Piece pos={lbL} size={ITEMS.lbL} color="#059669" label="" small />
-          <Piece pos={lbR} size={ITEMS.lbR} color="#059669" label="" small />
-          <Piece pos={sub} size={ITEMS.sub} color="#1e3a5f" label="Sub" small />
-
-          {/* Seating */}
-          <Piece pos={sofa} size={ITEMS.sofa} color="#6d28d9" label="Cozey Luna 4-Seater (343cm)" />
-          <Piece pos={ottoman} size={ITEMS.ottoman} color="#8b5cf6" label="Ottoman" />
-          <Piece pos={noguchi} size={ITEMS.noguchi} color="#831843" label="Noguchi" />
-          <Piece pos={endTable} size={ITEMS.endTable} color="#15803d" label="End Tbl" small />
-          <Piece pos={vela} size={ITEMS.vela} color="#db2777" label="Vela" rotate={-20} />
-
-          {/* Surrounds */}
-          <Piece pos={sl} size={ITEMS.sl} color="#c2410c" label="SL" small />
-          <Piece pos={sr} size={ITEMS.sr} color="#c2410c" label="SR" small />
-
-          {/* Viewing distance annotation — in the open space between console and noguchi */}
-          <div
-            className="absolute border-l border-dashed border-amber-400/30"
-            style={{
-              left: pX(visualCenterX),
-              top: pY(console_.y + ITEMS.console.h + 2),
-              height: pH(noguchi.y - console_.y - ITEMS.console.h - 4),
-            }}
-          />
-          <div
-            className="absolute text-[7px] md:text-[9px] text-amber-400 whitespace-nowrap"
-            style={{
-              left: pX(visualCenterX + 2),
-              top: pY((console_.y + ITEMS.console.h + noguchi.y) / 2),
-            }}
-          >
-            ~{viewingDist}″ (~{Math.round((viewingDist + 18) / 12)}′ to eyes)
+          <div className="bg-white border-l-4 border-green-600 p-4 rounded shadow-inner">
+            <p className="text-xs uppercase font-bold text-green-700 mb-2">
+              Phone Script
+            </p>
+            <div className="text-sm text-slate-700 space-y-3 italic">
+              <p>
+                "Hi, I'm the new owner at 93 Willowbrook Rd in Markham — closed
+                July 16, 2026. You installed a Gree heat pump here in August
+                2023 (outdoor GUD36W/A-D(U), indoor coil GCAT36F/NaA, serial
+                9AK223N021982)."
+              </p>
+              <p>
+                "The system won't start — buzzing then silence, refrigerant
+                line freezing, fan-only mode also unresponsive. I've cycled the
+                furnace switch with no change. I'd like to book a service call."
+              </p>
+              <p className="not-italic font-semibold text-slate-900">
+                Four things I need on this call:
+              </p>
+              <ol className="list-decimal list-inside space-y-1 not-italic text-slate-700">
+                <li>
+                  <strong>Warranty status</strong> — is the Gree parts warranty
+                  active, and does the workmanship warranty transfer to me as
+                  new owner?
+                </li>
+                <li>
+                  <strong>Blank maintenance log</strong> — previous owners left
+                  no records. Can we treat this as a warranty call and start a
+                  fresh annual maintenance plan going forward?
+                </li>
+                <li>
+                  <strong>Full service file emailed</strong> — I have zero
+                  paperwork. Need original invoice, Gree warranty certificate +
+                  registration, AHRI certificate, and any prior service records.
+                </li>
+                <li>
+                  <strong>Diagnostic fee</strong> — covered vs. not covered,
+                  and any after-hours surcharge?
+                </li>
+              </ol>
+              <p className="not-italic font-semibold text-slate-900 pt-2">
+                Extra context for the tech:
+              </p>
+              <p>
+                "The filter in the EAC cabinet doesn't seal properly — significant
+                bypass. Please bring coil cleaning supplies in case the evaporator
+                is dirty. Also, I'd appreciate an extra 15–20 min at the end for a
+                new-homeowner walkthrough. Happy to pay for the time."
+              </p>
+              <p className="not-italic text-xs text-slate-500 pt-2">
+                💡 Tip: if quoted 3+ days out, hang up and try the Markham
+                branch direct line — they sometimes have flex slots not visible
+                to central dispatch.
+              </p>
+            </div>
           </div>
+        </Section>
 
-          {/* Back wall */}
-          <div
-            className="absolute text-[6px] md:text-[8px] text-amber-400/50 whitespace-nowrap"
-            style={{ left: "30%", bottom: "0.3%" }}
-          >
-            5″ to back wall
-          </div>
+        {/* Step 3 - When Tech Arrives */}
+        <Section title="🔧 Step 3 — When the Technician Arrives" tone="amber">
+          <p className="text-sm text-slate-700 mb-4">
+            <strong>Record on your phone</strong> (ask permission first). Keep
+            this checklist open.
+          </p>
 
-          {/* Open side */}
-          <div
-            className="absolute text-[7px] md:text-[9px] text-emerald-400/50 whitespace-nowrap"
-            style={{ right: "-11%", top: "46%" }}
-          >
-            55″ open →
-          </div>
+          <div className="space-y-5">
+            <div>
+              <h3 className="font-bold text-slate-900 mb-2">
+                🩺 Diagnostic Questions (up front)
+              </h3>
+              <div className="pl-2">
+                <Check id="d1">What's your diagnosis?</Check>
+                <Check id="d2">
+                  Is it covered under Gree parts warranty and/or For Saving
+                  labour warranty?
+                </Check>
+                <Check id="d3">Show me the failed part before replacing.</Check>
+                <Check id="d4">
+                  How long has this problem been developing — sudden failure or
+                  pre-existing? (Get this in writing on the invoice)
+                </Check>
+                <Check id="d5">
+                  Any Gree fault codes stored? What do they mean?
+                </Check>
+              </div>
+            </div>
 
-          {/* Labels */}
-          <div
-            className="absolute text-[8px] md:text-[10px] text-gray-400 whitespace-nowrap left-1/2 -translate-x-1/2"
-            style={{ top: "-16px" }}
-          >
-            ← TV WALL (170″) →
-          </div>
-          <div
-            className="absolute text-[8px] md:text-[10px] text-gray-400 whitespace-nowrap"
-            style={{ left: "-13%", top: "46%", transform: "rotate(-90deg)" }}
-          >
-            ← 143″ →
-          </div>
-        </div>
-      </div>
+            <div>
+              <h3 className="font-bold text-slate-900 mb-2">
+                🎓 System Walkthrough — Ask Tech to Explain & Show
+              </h3>
+              <div className="pl-2">
+                <Check id="w1">
+                  All components (furnace, indoor coil, outdoor heat pump, EAC,
+                  humidifier, thermostat) — what each does
+                </Check>
+                <Check id="w2">
+                  Locations of all breakers, switches, gas valve, water shutoffs
+                </Check>
+                <Check id="w3">
+                  Correct filter size + MERV rating (aim for MERV 11 on this
+                  older furnace — higher restricts airflow)
+                </Check>
+                <Check id="w4">
+                  EAC: lift chrome cover — cells present, missing, or dead?
+                  Repair, bypass, or upgrade to media cabinet? Cost comparison.
+                </Check>
+                <Check id="w5">
+                  Evaporator coil: dirty? Clean if needed ($150–$400 or under
+                  warranty)
+                </Check>
+                <Check id="w6">
+                  Humidifier: pad type, replacement schedule, winter/summer
+                  settings, bypass damper position
+                </Check>
+                <Check id="w7">
+                  Condensate drain: route, signs of clogging, how to flush myself
+                </Check>
+                <Check id="w8">
+                  Outdoor heat pump: clearance, coil cleaning, DO NOT fully
+                  cover in winter (runs year-round)
+                </Check>
+                <Check id="w9">
+                  Ecobee Lite 3: verify heat pump wiring (O/B reversing valve),
+                  aux heat configured, no short-cycling in runtime
+                </Check>
+                <Check id="w10">
+                  Furnace age & health: 10 yrs old — remaining life? Budget?
+                </Check>
+              </div>
+            </div>
 
-      {/* Legend */}
-      <div className="grid grid-cols-3 md:flex md:flex-wrap gap-x-3 md:gap-x-4 gap-y-1 mt-4 text-[8px] md:text-[11px] max-w-[700px] mx-auto">
-        {[
-          { color: "#dc2626", label: "TCL QM6K 85″" },
-          { color: "#1d4ed8", label: "Console (86.6″)" },
-          { color: "#059669", label: "Light Bars" },
-          { color: "#c2410c", label: "5.1 Speakers" },
-          { color: "#b45309", label: "Center Ch." },
-          { color: "#1e3a5f", label: "Subwoofer" },
-          { color: "#6d28d9", label: "Luna Sofa" },
-          { color: "#8b5cf6", label: "Ottoman" },
-          { color: "#db2777", label: "Vela" },
-          { color: "#831843", label: "Noguchi" },
-          { color: "#15803d", label: "End Table" },
-          { color: "rgba(120,85,50,0.5)", label: "Rug (8×5)" },
-        ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-1">
-            <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
-            <span>{label}</span>
+            <div>
+              <h3 className="font-bold text-slate-900 mb-2">
+                🚨 Warning Signs to Learn
+              </h3>
+              <div className="pl-2">
+                <Check id="ws1">
+                  Noises, smells, or behaviours that mean "call immediately"
+                </Check>
+                <Check id="ws2">
+                  LED blink codes on furnace + heat pump — how to read them
+                </Check>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-bold text-slate-900 mb-2">
+                📋 Before They Leave
+              </h3>
+              <div className="pl-2">
+                <Check id="b1">
+                  Fill in the blank service card: filter size, warranty
+                  expiration, today's service entry, next service date
+                </Check>
+                <Check id="b2">
+                  Written itemized invoice: parts, labour, warranty coverage
+                  clearly noted
+                </Check>
+                <Check id="b3">
+                  Book next annual maintenance (spring cooling / fall heating)
+                </Check>
+                <Check id="b4">
+                  Ask about annual maintenance plan ($150–$300/yr) to protect
+                  labour warranty
+                </Check>
+                <Check id="b5">
+                  Photograph any replaced parts; keep the old part if possible
+                </Check>
+              </div>
+            </div>
           </div>
-        ))}
+        </Section>
+
+        {/* Filter Guide */}
+        <Section title="🧊 Filter Buying Guide" tone="slate">
+          <p className="text-sm text-slate-700 mb-3">
+            <strong>Recommendation for your setup: MERV 11.</strong> Higher
+            ratings (MERV 13+) can starve airflow on your 10-year-old furnace
+            and *cause* the coil-freezing issue you're trying to solve.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-slate-300">
+                  <th className="text-left py-2 pr-4 font-semibold">MERV</th>
+                  <th className="text-left py-2 pr-4 font-semibold">
+                    Filters Out
+                  </th>
+                  <th className="text-left py-2 font-semibold">Best For</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                <tr>
+                  <td className="py-2 pr-4 font-mono">8</td>
+                  <td className="py-2 pr-4 text-slate-700">
+                    Dust, pollen, lint
+                  </td>
+                  <td className="py-2 text-slate-700">Basic / older systems</td>
+                </tr>
+                <tr className="bg-green-50">
+                  <td className="py-2 pr-4 font-mono font-bold">11 ✓</td>
+                  <td className="py-2 pr-4 text-slate-700">
+                    + Pet dander, mold, fine dust
+                  </td>
+                  <td className="py-2 text-slate-700 font-semibold">
+                    Your sweet spot
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-mono">13</td>
+                  <td className="py-2 pr-4 text-slate-700">
+                    + Bacteria, smoke
+                  </td>
+                  <td className="py-2 text-slate-700">
+                    Allergies · risk airflow issues
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-mono">16+</td>
+                  <td className="py-2 pr-4 text-slate-700">+ Fine viruses</td>
+                  <td className="py-2 text-slate-700">
+                    ⚠️ Can damage residential blowers
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 text-sm text-slate-700">
+            <p className="font-semibold mb-1">Recommended brands (MERV 11):</p>
+            <ul className="list-disc list-inside space-y-0.5 text-slate-600">
+              <li>3M Filtrete 1500 (MPR 1500) — widely available</li>
+              <li>Nordic Pure MERV 11 — good value multipacks</li>
+              <li>Honeywell FPR 7</li>
+              <li>Costco Kirkland pleated — best $/filter</li>
+            </ul>
+            <p className="mt-2 text-xs text-slate-500">
+              Change every 3 months. Write install date on frame with a
+              Sharpie. Avoid fiberglass throwaways and permanent washable
+              filters.
+            </p>
+          </div>
+        </Section>
+
+        {/* Step 4 - File */}
+        <Section title="🗂️ Step 4 — Build Your HVAC File" tone="slate">
+          <p className="text-sm text-slate-700 mb-3">
+            You have <strong>zero paperwork</strong> from the previous owners —
+            For Saving is your primary source. Build both a digital folder and
+            physical binder:
+          </p>
+          <div className="grid sm:grid-cols-2 gap-x-6">
+            <div>
+              <Check id="f1">Photos of all data plates ✓ (done)</Check>
+              <Check id="f2">
+                Original 2023 install invoice (request from For Saving)
+              </Check>
+              <Check id="f3">
+                Gree warranty certificate + registration confirmation
+              </Check>
+              <Check id="f4">AHRI matched-system certificate</Check>
+              <Check id="f5">Today's service invoice</Check>
+              <Check id="f6">
+                City of Markham HVAC permit records (public request)
+              </Check>
+            </div>
+            <div>
+              <Check id="f7">Filter size + change log</Check>
+              <Check id="f8">Annual maintenance receipts</Check>
+              <Check id="f9">
+                Contacts: For Saving, Gree distributor, Enbridge, Alectra
+              </Check>
+              <Check id="f10">Video/audio of the walkthrough</Check>
+              <Check id="f11">Ecobee equipment config screenshot</Check>
+              <Check id="f12">
+                Factory-reset Ecobee → re-register under your email
+              </Check>
+            </div>
+          </div>
+        </Section>
+
+        {/* Cost Table */}
+        <Section title="💰 Cost Expectations (CAD)" tone="slate">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-slate-300">
+                  <th className="text-left py-2 pr-4 font-semibold text-slate-900">
+                    Scenario
+                  </th>
+                  <th className="text-right py-2 font-semibold text-slate-900">
+                    Cost
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                <tr>
+                  <td className="py-2 pr-4 text-slate-700">
+                    Warranty-covered repair
+                  </td>
+                  <td className="py-2 text-right font-mono text-green-700">
+                    $0 – $150
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 text-slate-700">
+                    Non-warranty repair (capacitor / contactor / board)
+                  </td>
+                  <td className="py-2 text-right font-mono text-slate-700">
+                    $200 – $450
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 text-slate-700">
+                    Coil cleaning (if needed)
+                  </td>
+                  <td className="py-2 text-right font-mono text-slate-700">
+                    $150 – $400
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 text-slate-700">
+                    Annual maintenance plan
+                  </td>
+                  <td className="py-2 text-right font-mono text-slate-700">
+                    $150 – $300/yr
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 text-slate-700">
+                    EAC removal + media filter cabinet upgrade
+                  </td>
+                  <td className="py-2 text-right font-mono text-slate-700">
+                    $400 – $700
+                  </td>
+                </tr>
+                <tr className="bg-amber-50">
+                  <td className="py-2 pr-4 text-slate-700">
+                    Flat fee if issue is on warranty sticker checklist
+                  </td>
+                  <td className="py-2 text-right font-mono text-amber-800">
+                    $120
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        {/* Note about previous owner */}
+        <Section title="ℹ️ Note on Previous Owner Liability" tone="slate">
+          <p className="text-sm text-slate-700">
+            Missed maintenance by the previous owners is{" "}
+            <strong>not legally recoverable</strong> in Ontario — caveat emptor
+            applies. Only pursue a claim if the technician documents a{" "}
+            <strong>clearly pre-existing defect</strong> (e.g., multi-year
+            refrigerant leak, prior amateur repair, damage that existed on
+            closing day July 16, 2026) AND the repair is $2,000+. In that
+            narrow case, call your real estate lawyer for a free consult before
+            doing anything else.
+          </p>
+        </Section>
+
+        <footer className="text-center text-xs text-slate-500 pt-4 pb-8">
+          Print this page or save as PDF for offline reference during your
+          service call.
+        </footer>
       </div>
     </div>
   );
