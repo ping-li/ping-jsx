@@ -8,9 +8,14 @@ export default function FurnaceWalkthrough() {
     costcoRebate: "",
     warranty: "",
     included: "",
+    permits: "",
+    acCoil: "",
     addOns: "",
+    ductwork: "",
+    maintenancePlan: "",
     redFlags: "",
     finalPrice: "",
+    postInstall: "",
     generalNotes: "",
   });
 
@@ -31,21 +36,27 @@ export default function FurnaceWalkthrough() {
       color: "#3b82f6",
       checklist: [
         "Did they measure rooms / square footage?",
-        "Did they inspect ductwork?",
+        "Did they inspect ductwork condition?",
         "Did they check static pressure?",
         "Did they inspect gas line and venting?",
         "Did they ask about cold/hot spots in the house?",
-        "Did they look at the existing AC coil on top of furnace?",
+        "Did they evaluate cold-air returns on 2nd floor?",
+        "Did they look at existing AC coil on top of furnace?",
+        "Did they check electrical panel capacity?",
       ],
     },
     {
       id: "sizing",
-      title: "2. Sizing (CRITICAL - don't skip)",
+      title: "2. Manual J Load Calculation (CRITICAL)",
       color: "#ef4444",
       checklist: [
-        "Did they perform a Manual J load calculation?",
-        "What BTU size are they recommending? (should be ~80-100K for 2550 sqft)",
-        "Did they justify the size, or just say 'same as old one'?",
+        "Are they performing a Manual J load calc? (YES is mandatory)",
+        "Done on-site with software, or separate visit?",
+        "Will I get a WRITTEN load calc summary with quote?",
+        "Recommended BTU size: __________ (expect 60-85K, NOT 100K)",
+        "If they say 'same as old one' = WALK AWAY",
+        "If they quote 100K without Manual J = oversized, push back",
+        "Ask: 'What's my heat loss in BTUs?' (should have a number)",
       ],
     },
     {
@@ -57,6 +68,7 @@ export default function FurnaceWalkthrough() {
         "Mid: Lennox EL296V - two-stage variable speed (~$6.5-8K)",
         "Premium: Lennox SLP99V or SL297NV - modulating (~$8.5-11K)",
         "Ask: 'Will I actually feel the difference between EL296V and SLP99V in MY home?'",
+        "Ask if furnace is heat-pump compatible for future hybrid upgrade",
       ],
     },
     {
@@ -64,74 +76,147 @@ export default function FurnaceWalkthrough() {
       title: "4. Costco Rebate Details (In writing!)",
       color: "#f59e0b",
       checklist: [
-        "Confirm Shop Card percentage (should be 10%, 12% for Executive)",
+        "Confirm Shop Card percentage (10% standard, 12% Executive)",
         "Ask about current Aug/Sept 2026 promotions",
-        "Any bonus rebates? Free thermostat? Extended warranty?",
-        "Confirm you must be Costco member at time of purchase",
+        "Bonus rebates? Free thermostat? Extended warranty?",
+        "Confirm Costco member required at time of purchase",
+        "Consider upgrading to Executive membership if not already",
       ],
     },
     {
       id: "warranty",
-      title: "5. Warranty (Push for more)",
+      title: "5. Warranty (Get everything in WRITING)",
       color: "#10b981",
       checklist: [
         "Parts warranty: should be 10 years",
         "Heat exchanger: should be LIFETIME",
         "Labor warranty: push for 5-10 years (Premier Dealer perk)",
-        "Get all warranty terms in WRITING",
-        "Confirm registration process (must register within 60 days)",
+        "Confirm registration within 60 days (or drops to 5yr)",
+        "ForSaving to handle registration? Get confirmation #",
+        "AC warranty NOT voided by coil disconnect? (in writing)",
+      ],
+    },
+    {
+      id: "permits",
+      title: "6. Permits & Inspections (Legally required)",
+      color: "#0891b2",
+      checklist: [
+        "TSSA gas permit included in quote?",
+        "Markham municipal building permit included?",
+        "ESA electrical inspection if wiring touched?",
+        "Get permit numbers AFTER install (for records)",
+        "Unpermitted work = insurance & resale problems",
+      ],
+    },
+    {
+      id: "acCoil",
+      title: "7. AC Coil Handling (Your 2023 AC)",
+      color: "#0d9488",
+      checklist: [
+        "AC coil disconnect/reconnect INCLUDED in quote?",
+        "No extra charge for refrigerant recovery/recharge?",
+        "AC warranty confirmed NOT VOIDED (in writing)?",
+        "Same techs who installed AC doing this? (continuity)",
+        "New coil needed? (usually no, but ask)",
       ],
     },
     {
       id: "included",
-      title: "6. What's Included? (No surprise charges)",
+      title: "8. What Else Is Included?",
       color: "#06b6d4",
       checklist: [
-        "Municipal permit included?",
-        "Gas inspection (TSSA) included?",
-        "Old furnace removal and disposal included?",
-        "AC coil disconnect/reconnect included (no impact to AC warranty)?",
+        "Old furnace removal and disposal?",
         "New venting if required?",
         "New thermostat wiring if needed?",
         "Cleanup after install?",
+        "Combustion analysis / startup commissioning?",
       ],
     },
     {
       id: "addOns",
-      title: "7. Add-Ons Worth Considering",
+      title: "9. Add-Ons Worth Considering",
       color: "#ec4899",
       checklist: [
-        "Whole-home humidifier (~$500-900) - YES for Markham winters",
-        "Media air filter cabinet 5-inch (~$150-300) - great IAQ upgrade",
-        "Smart thermostat - Ecobee Premium or Lennox iComfort S30 (~$400-700)",
+        "Whole-home humidifier - Aprilaire 600/700 (~$500-900) - YES for kids/wood floors",
+        "Media air filter cabinet 5-inch (~$150-300) - major IAQ upgrade",
+        "Smart thermostat - Ecobee Premium / Lennox iComfort S30 (~$400-700)",
+        "Ontario smart thermostat rebate (~$75-100)?",
         "UV light / air purifier (~$400-800) - optional",
-        "Ask about Ontario smart thermostat rebate (~$75-100)",
+        "New CO detector if current one is >7 years old",
+        "Adding 2nd floor cold-air return? (cheaper now than later)",
+      ],
+    },
+    {
+      id: "ductwork",
+      title: "10. Ductwork (10 years no maintenance)",
+      color: "#a855f7",
+      checklist: [
+        "Ask installer to assess duct condition",
+        "Any visible leaks, damage, or disconnects?",
+        "Static pressure reading? (tells if ducts are restricted)",
+        "Plan for duct cleaning AFTER new furnace install (~$400-600)",
+        "AVOID $99 duct cleaning scams (Groupon-style)",
+      ],
+    },
+    {
+      id: "maintenancePlan",
+      title: "11. Maintenance Plan (Bundle it)",
+      color: "#14b8a6",
+      checklist: [
+        "Ask about ForSaving maintenance plan (~$200-300/yr)",
+        "Should cover furnace + AC annual tune-ups",
+        "Priority service in emergencies?",
+        "10-15% discount on any repairs?",
+        "Can they credit today's diagnostic fee toward enrollment?",
       ],
     },
     {
       id: "redFlags",
-      title: "8. Red Flags - WALK AWAY IF...",
+      title: "12. Red Flags - WALK AWAY IF...",
       color: "#dc2626",
       checklist: [
         "Pressure to sign TODAY ('price only good until midnight')",
         "Refusal to provide itemized written quote",
+        "Skipping Manual J load calculation",
         "Quoting oversized furnace ('bigger is better' = WRONG)",
-        "No Manual J load calculation offered",
         "Vague on Costco rebate specifics",
         "Won't provide references",
-        "In-house techs? Or subcontractors? (in-house is better)",
+        "Subcontractors instead of in-house techs",
+        "Won't include permits in quote",
       ],
     },
     {
       id: "finalPrice",
-      title: "9. Final Price Sanity Check",
+      title: "13. Final Price Sanity Check",
       color: "#7c3aed",
       checklist: [
         "Target NET (after Costco rebate): $5,800-$9,700",
         "Mid-tier EL296V net target: ~$5,800-7,200",
         "Premium SLP99V net target: ~$7,500-9,700",
         "Fully loaded (furnace + humidifier + thermostat + filter): ~$9,000-11,500 net",
-        "If quote is 25%+ above these ranges: negotiate or get benchmark quote",
+        "If 25%+ above these ranges: negotiate or get benchmark quote",
+        "Financing options? Costco 0% promo available?",
+      ],
+    },
+    {
+      id: "postInstall",
+      title: "14. Post-Install Checklist (Day of / after)",
+      color: "#6366f1",
+      checklist: [
+        "📸 Photo of OLD furnace data plate BEFORE removal",
+        "📸 Before photos of mechanical room",
+        "📸 After photos of mechanical room",
+        "📸 Photo of NEW furnace data plate (model + serial)",
+        "Get permit number(s) from installer",
+        "Get warranty registration confirmation email/number",
+        "Test all CO detectors (replace if >7 yrs old)",
+        "Update home insurance with new equipment info",
+        "Ask insurance about HVAC breakdown coverage add-on",
+        "Save all invoices/warranties to home binder or digital folder",
+        "Schedule duct cleaning for 2-4 weeks post-install",
+        "Set calendar reminder: filter change every 3 months",
+        "Set calendar reminder: annual furnace tune-up Sept/Oct",
+        "Set calendar reminder: annual AC tune-up April/May",
       ],
     },
   ];
@@ -214,7 +299,8 @@ export default function FurnaceWalkthrough() {
         }}
       >
         <strong>💡 Remember:</strong> A good sales visit feels like <em>diagnosis</em>, not
-        a <em>transaction</em>. If they're pushing hard to close today, slow down.
+        a <em>transaction</em>. If pushed to close today, slow down. The #1 mistake is
+        skipping the Manual J load calc — insist on it.
       </div>
 
       {sections.map((section) => (
@@ -297,10 +383,10 @@ export default function FurnaceWalkthrough() {
         }}
       >
         <h2 style={{ fontSize: "16px", margin: "0 0 12px 0" }}>
-          📝 General Notes / Final Quote Numbers / Questions
+          📝 General Notes / Final Quote Numbers / Salesperson Name
         </h2>
         <textarea
-          placeholder="Write down the final quote breakdown, salesperson name, gut feelings, anything else..."
+          placeholder="Salesperson name, final quote breakdown, gut feelings, anything else..."
           value={notes.generalNotes}
           onChange={(e) => handleNoteChange("generalNotes", e.target.value)}
           style={{
